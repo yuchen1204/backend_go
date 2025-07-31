@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    ports:
+      - "8080:8080"    # Go应用端口
+      - "2222:22"      # SSH端口
+      - "5432:5432"    # PostgreSQL端口
+      - "6379:6379"    # Redis端口
+    volumes:
+      - ./uploads:/app/uploads
+      - ./configs:/app/configs
+      - backend_data:/var/lib/postgresql/13/main
+    environment:
+      - PORT=8080
+      - DB_HOST=localhost
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=backend
+      - REDIS_HOST=localhost
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+volumes:
+  backend_data: 

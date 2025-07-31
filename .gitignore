@@ -6,7 +6,7 @@ go.sum
 .env
 .env.local
 .env.*.local
-
+.env.backup
 # 日志文件
 *.log
 
