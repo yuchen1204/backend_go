@@ -96,7 +96,7 @@ docker-compose -f docker-compose.multi-local.yml down
 
 1.  **克隆项目**
     ```bash
-    git clone <repository-url>
+    git clone https://github.com/yuchen1204/backend_go
     cd backend
     ```
 
