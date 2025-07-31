@@ -11,6 +11,10 @@ ENV PATH="${GOPATH}/bin:${PATH}"
 # 创建工作目录
 WORKDIR /app
 
+# 更换为国内镜像源加速下载
+RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.ustc.edu.cn@g' /etc/apt/sources.list && \
+    sed -i 's@//.*security.ubuntu.com@//mirrors.ustc.edu.cn@g' /etc/apt/sources.list
+
 # 安装基础工具和依赖
 RUN apt-get update && apt-get install -y \
     curl \
@@ -22,6 +26,7 @@ RUN apt-get update && apt-get install -y \
     redis-server \
     git \
     ca-certificates \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
 
 # 安装Go语言
