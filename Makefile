@@ -15,24 +15,24 @@ help:
 # 构建应用程序
 build:
 	@echo "构建应用程序..."
-	/usr/bin/go/bin/go build -o backend cmd/main.go
+	go build -o backend cmd/main.go
 
 # 运行应用程序
 run:
 	@echo "启动应用程序..."
-	/usr/bin/go/bin/go run cmd/main.go
+	go run cmd/main.go
 
 # 运行测试
 test:
 	@echo "运行测试..."
-	/usr/bin/go/bin/go test ./...
+	go test ./...
 
 # 生成API文档
 docs:
 	@echo "生成API文档..."
 	@if ! command -v swag &> /dev/null; then \
 		echo "安装swag工具..."; \
-		/usr/bin/go/bin/go install github.com/swaggo/swag/cmd/swag@latest; \
+		go install github.com/swaggo/swag/cmd/swag@latest; \
 	fi
 	@if [ -f ~/go/bin/swag ]; then \
 		~/go/bin/swag init -g cmd/main.go -o ./docs; \
@@ -53,18 +53,18 @@ clean:
 # 格式化代码
 fmt:
 	@echo "格式化代码..."
-	/usr/bin/go/bin/go fmt ./...
+	go fmt ./...
 
 # 检查代码
 vet:
 	@echo "检查代码..."
-	/usr/bin/go/bin/go vet ./...
+	go vet ./...
 
 # 安装依赖
 deps:
 	@echo "安装依赖..."
-	/usr/bin/go/bin/go mod tidy
-	/usr/bin/go/bin/go mod download
+	go mod tidy
+	go mod download
 
 # 开发环境初始化
 dev-setup: deps docs

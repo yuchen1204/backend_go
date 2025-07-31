@@ -26,6 +26,117 @@
 - **文件存储**: 本地存储 + AWS S3
 - **文档**: Swagger/OpenAPI
 
+## 使用 Docker Compose 运行 (推荐)
+
+本项目提供了 Docker Compose 配置，可以一键启动应用所需的所有服务（PostgreSQL, Redis, Go Backend）。这是最简单、最推荐的运行方式。
+
+### 1. 准备工作
+
+首先，请确保你已经安装了 `Docker` 和 `docker-compose`。
+
+### 2. 选择配置文件
+
+我们提供了两种开箱即用的配置：
+
+- **`docker-compose.multi-local.yml`**: 使用本地文件系统作为存储。上传的文件会保存在项目根目录的 `uploads/` 文件夹下。
+- **`docker-compose.multi-s3.yml`**: 使用 AWS S3 作为文件存储。
+
+### 3. 启动服务
+
+#### 选项 A: 使用本地存储 (适合快速测试)
+
+```bash
+# 使用 multi-local 配置文件启动所有服务
+docker-compose -f docker-compose.multi-local.yml up --build -d
+```
+
+#### 选项 B: 使用 S3 存储 (适合生产或模拟生产环境)
+
+**在启动前**，请务-必打开 `docker-compose.multi-s3.yml` 文件，并将其中所有 `YOUR_...` 占位符替换为你的真实 AWS S3 凭证。
+
+```yaml
+      # ...
+      # S3 存储 'primary' 的配置
+      FILE_STORAGE_S3_PRIMARY_REGION: "us-east-1"  # <- 修改这里
+      FILE_STORAGE_S3_PRIMARY_BUCKET: "your-primary-bucket" # <- 修改这里
+      FILE_STORAGE_S3_PRIMARY_ACCESS_KEY: "YOUR_PRIMARY_ACCESS_KEY" # <- 修改这里
+      FILE_STORAGE_S3_PRIMARY_SECRET_KEY: "YOUR_PRIMARY_SECRET_KEY" # <- 修改这里
+      # ...
+```
+
+然后运行以下命令启动：
+
+```bash
+# 使用 multi-s3 配置文件启动所有服务
+docker-compose -f docker-compose.multi-s3.yml up --build -d
+```
+
+### 4. 访问应用
+
+服务启动后：
+
+- **应用**: `http://localhost:8080`
+- **API 文档**: `http://localhost:8080/swagger/index.html`
+
+### 5. 查看日志和停止服务
+
+```bash
+# 查看所有服务的实时日志 (使用对应的 -f 文件)
+docker-compose -f docker-compose.multi-local.yml logs -f
+
+# 停止并移除所有容器、网络和卷
+docker-compose -f docker-compose.multi-local.yml down
+```
+
+---
+
+## 快速开始 (本地手动部署)
+
+此方法适用于不使用 Docker，希望在本地手动配置和运行所有依赖的开发者。
+
+1.  **克隆项目**
+    ```bash
+    git clone <repository-url>
+    cd backend
+    ```
+
+2.  **安装依赖**
+    ```bash
+    go mod tidy
+    ```
+
+3.  **生成API文档**
+    ```bash
+    # (在 Linux/macOS)
+    chmod +x scripts/generate-docs.sh
+    ./scripts/generate-docs.sh
+    ```
+
+4.  **设置环境变量**
+    复制 `configs/env.example` 文件到项目根目录，并重命名为 `.env`。
+    ```bash
+    cp configs/env.example .env
+    ```
+    然后编辑 `.env` 文件，至少需要配置好数据库、Redis和SMTP服务的连接信息。
+
+5.  **启动 PostgreSQL 数据库和 Redis**
+    你需要在本地手动安装并启动 PostgreSQL 和 Redis 服务，并确保已创建好应用所需的数据库。
+    ```bash
+    # 示例: 在 Ubuntu 上安装
+    # sudo apt-get install postgresql postgresql-contrib redis-server
+
+    # 创建数据库
+    createdb backend
+    ```
+
+6.  **运行应用**
+    ```bash
+    go run cmd/main.go
+    ```
+
+7.  **访问API文档**
+    浏览器访问 `http://localhost:8080/swagger/index.html`。
+
 ## API 文档
 
 ### 在线文档
@@ -387,53 +498,6 @@ SMTP_FROM=your-email@example.com
 MAX_IP_REQUESTS_PER_DAY=10
 ```
 
-## 快速开始
-
-1. **克隆项目**
-```bash
-git clone <repository-url>
-cd backend
-```
-
-2. **安装依赖**
-```bash
-go mod tidy
-```
-
-3. **生成API文档**
-```bash
-./scripts/generate-docs.sh
-```
-
-4. **设置环境变量**
-```bash
-cp configs/env.example .env
-# 编辑 .env 文件设置数据库连接信息
-```
-
-5. **启动 PostgreSQL 数据库和 Redis**
-```bash
-# 手动安装并启动 PostgreSQL 和 Redis 服务
-# PostgreSQL 安装: sudo apt-get install postgresql postgresql-contrib
-# Redis 安装: sudo apt-get install redis-server
-
-# 创建数据库
-createdb backend
-```
-
-6. **运行应用**
-```bash
-go run cmd/main.go
-```
-
-7. **访问API文档**
-```bash
-# 在浏览器中访问
-http://localhost:8080/swagger/index.html
-```
-
-服务器将在 `http://localhost:8080` 启动。
-
 ## API 接口概览
 
 ### 🔓 公开接口（无需认证）
@@ -590,4 +654,4 @@ go build -o backend cmd/main.go
 - 依赖注入模式
 - 接口驱动开发
 - GORM 自动数据库迁移
-- 统一响应格式 
+- 统一响应格式

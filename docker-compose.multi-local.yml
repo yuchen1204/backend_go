@@ -1,0 +1,78 @@
+# 示例：配置多个本地存储
+# 运行方式: docker-compose -f docker-compose.multi-local.yml up -d
+version: '3.3'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: postgres_db_local
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: backend
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis_cache_local
+    restart: always
+    command: redis-server --save 60 1 --loglevel warning --requirepass myredispassword
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend_net
+
+  backend:
+    build: .
+    container_name: backend_go_app_local
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      # 数据库和Redis配置
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: mysecretpassword
+      DB_NAME: backend
+      DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: myredispassword
+      REDIS_DB: 0
+
+      # --- 多本地存储配置 ---
+      # 1. 设置默认存储为 'docs'
+      FILE_STORAGE_DEFAULT: docs
+
+      # 2. 定义所有可用的本地存储的逻辑名称
+      FILE_STORAGE_LOCAL_NAMES: docs,avatars
+
+      # 3. (可选) 为特定的本地存储提供自定义路径和URL
+      # 如果不提供，应用会使用默认值 (例如: ./uploads/docs)
+      # FILE_STORAGE_LOCAL_AVATARS_PATH: /app/custom_avatar_path
+      # FILE_STORAGE_LOCAL_AVATARS_URL: http://localhost:8080/custom_avatar_path
+
+    depends_on:
+      - db
+      - redis
+    volumes:
+      # 将主机上的目录挂载到容器中，以持久化本地上传的文件
+      - ./uploads/docs:/app/uploads/docs
+      - ./uploads/avatars:/app/uploads/avatars
+      # 如果使用了自定义路径，需要对应修改挂载点:
+      # - ./custom_avatars:/app/custom_avatar_path
+    networks:
+      - backend_net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  backend_net:
+    driver: bridge
