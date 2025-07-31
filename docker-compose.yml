@@ -1,31 +1,43 @@
 version: '3.8'
 
 services:
-  backend:
-    build: .
+  backend-all-in-one:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend-all-services
     ports:
-      - "8080:8080"    # Go应用端口
-      - "2222:22"      # SSH端口
-      - "5432:5432"    # PostgreSQL端口
-      - "6379:6379"    # Redis端口
+      - "1000:1000"  # SSH端口
+      - "1001:1001"  # 后端API端口
     volumes:
-      - ./uploads:/app/uploads
-      - ./configs:/app/configs
-      - backend_data:/var/lib/postgresql/13/main
+      - postgres_data:/var/lib/postgresql
+      - redis_data:/var/lib/redis
+      - uploads_data:/app/uploads
     environment:
-      - PORT=8080
+      - PORT=1001
       - DB_HOST=localhost
       - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - DB_NAME=backend
+      - DB_SSLMODE=disable
       - REDIS_HOST=localhost
       - REDIS_PORT=6379
       - REDIS_PASSWORD=
-      - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+      - REDIS_DB=0
+      - JWT_SECRET=your-very-secret-jwt-key-change-this-in-production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1001/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     restart: unless-stopped
-    stdin_open: true
-    tty: true
 
 volumes:
-  backend_data: 
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  uploads_data:
+    driver: local 

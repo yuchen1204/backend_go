@@ -413,12 +413,12 @@ cp configs/env.example .env
 
 5. **启动 PostgreSQL 数据库和 Redis**
 ```bash
-# 使用 Docker
-docker run --name postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres
-docker run --name redis -p 6379:6379 -d redis
+# 手动安装并启动 PostgreSQL 和 Redis 服务
+# PostgreSQL 安装: sudo apt-get install postgresql postgresql-contrib
+# Redis 安装: sudo apt-get install redis-server
 
 # 创建数据库
-docker exec -it postgres psql -U postgres -c "CREATE DATABASE backend;"
+createdb backend
 ```
 
 6. **运行应用**
@@ -550,13 +550,13 @@ curl -X GET "http://localhost:8080/api/v1/files/my?category=profile&page=1&page_
 
 ## 部署
 
-### Docker部署
+### 本地部署
 ```bash
-# 构建镜像
-docker build -t backend-api .
+# 编译应用
+go build -o backend cmd/main.go
 
-# 运行容器
-docker run -p 8080:8080 backend-api
+# 运行应用
+./backend
 ```
 
 ### 环境变量
