@@ -27,7 +27,7 @@ services:
       - REDIS_DB=0
       - JWT_SECRET=your-very-secret-jwt-key-change-this-in-production
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:1001/api/v1/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:1001/health"]
       interval: 30s
       timeout: 10s
       retries: 3

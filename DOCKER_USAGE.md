@@ -48,6 +48,7 @@ docker-compose up --build -d
 
 - **API服务**: http://localhost:1001
 - **API文档**: http://localhost:1001/swagger/index.html
+- **健康检查**: http://localhost:1001/health
 - **SSH访问**: ssh root@localhost -p 1000 (密码: password)
 
 ## 环境配置
