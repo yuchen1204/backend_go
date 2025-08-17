@@ -7,10 +7,8 @@ services:
     image: postgres:15-alpine
     container_name: postgres_db_s3
     restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: mysecretpassword
-      POSTGRES_DB: backend
+    env_file:
+      - ./configs/.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -20,7 +18,9 @@ services:
     image: redis:7-alpine
     container_name: redis_cache_s3
     restart: always
-    command: redis-server --save 60 1 --loglevel warning --requirepass myredispassword
+    env_file:
+      - ./configs/.env
+    command: ["sh", "-c", "redis-server --save 60 1 --loglevel warning --requirepass \"$REDIS_PASSWORD\""]
     volumes:
       - redis_data:/data
     networks:
@@ -32,40 +32,8 @@ services:
     restart: always
     ports:
       - "8080:8080"
-    environment:
-      # 数据库和Redis配置
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: mysecretpassword
-      DB_NAME: backend
-      DB_SSLMODE: disable
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: myredispassword
-      REDIS_DB: 0
-      
-      # --- 多 S3 存储配置 ---
-      # 1. 设置默认存储为 'primary'
-      FILE_STORAGE_DEFAULT: primary
-
-      # 2. 定义所有可用的 S3 存储的逻辑名称
-      FILE_STORAGE_S3_NAMES: primary,backups
-
-      # --- 详细配置每个 S3 存储 ---
-      
-      # S3 存储 'primary' 的配置
-      FILE_STORAGE_S3_PRIMARY_REGION: "us-east-1"
-      FILE_STORAGE_S3_PRIMARY_BUCKET: "your-primary-bucket"
-      FILE_STORAGE_S3_PRIMARY_ACCESS_KEY: "YOUR_PRIMARY_ACCESS_KEY"
-      FILE_STORAGE_S3_PRIMARY_SECRET_KEY: "YOUR_PRIMARY_SECRET_KEY"
-
-      # S3 存储 'backups' 的配置
-      FILE_STORAGE_S3_BACKUPS_REGION: "eu-west-1"
-      FILE_STORAGE_S3_BACKUPS_BUCKET: "your-backups-bucket"
-      FILE_STORAGE_S3_BACKUPS_ACCESS_KEY: "YOUR_BACKUPS_ACCESS_KEY"
-      FILE_STORAGE_S3_BACKUPS_SECRET_KEY: "YOUR_BACKUPS_SECRET_KEY"
-
+    env_file:
+      - ./configs/.env
     depends_on:
       - db
       - redis

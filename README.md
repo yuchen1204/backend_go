@@ -34,6 +34,12 @@
 
 首先，请确保你已经安装了 `Docker` 和 `docker-compose`。
 
+> 依赖使用 vendoring（`vendor/` 目录），构建前请先生成 vendor：
+```bash
+go mod tidy
+go mod vendor
+```
+
 ### 2. 选择配置文件
 
 我们提供了两种开箱即用的配置：
@@ -71,6 +77,23 @@ docker-compose -f docker-compose.multi-local.yml up --build -d
 docker-compose -f docker-compose.multi-s3.yml up --build -d
 ```
 
+### 3.1 环境变量与 Compose 插值（重要）
+
+- 运行 Compose 时，项目根目录的 `.env`（Compose 专用）会在“解析阶段”用于变量插值；而 `env_file`（如 `./configs/.env`）只在容器内生效。
+- 本项目约定使用 `configs/.env` 提供应用所需环境变量，避免根 `.env` 干扰。
+- 如果你的根目录存在 `.env`，请确保也包含 `REDIS_PASSWORD`，或临时重命名为 `.env.bak` 以避免编排期将其置空。
+- Redis 在 Compose 中通过命令行参数设置密码，我们已使用 `$$REDIS_PASSWORD` 让变量在“容器内”展开，规避解析期替换。
+
+快速校验与重建：
+```bash
+# 确保在文件 configs/.env 中设置了 REDIS_PASSWORD
+# 例如：REDIS_PASSWORD=your-redis-password
+
+docker-compose -f docker-compose.multi-local.yml down
+docker-compose -f docker-compose.multi-local.yml up -d --force-recreate
+docker-compose -f docker-compose.multi-local.yml logs -f redis
+```
+
 ### 4. 访问应用
 
 服务启动后：
@@ -87,6 +110,16 @@ docker-compose -f docker-compose.multi-local.yml logs -f
 # 停止并移除所有容器、网络和卷
 docker-compose -f docker-compose.multi-local.yml down
 ```
+
+### 6. 常见问题（FAQ）
+
+- **看到警告 The "REDIS_PASSWORD" variable is not set**：
+  - 说明 Compose 解析期没有拿到该变量。请确认根 `.env` 不干扰，且 `configs/.env` 中已设置 `REDIS_PASSWORD`。
+  - 我们已在 Compose 中使用 `$$REDIS_PASSWORD`，变量会在容器内展开。只要 `configs/.env` 有值，Redis 会正确启用密码。
+- **Redis 日志出现 requirepass wrong number of arguments**：
+  - 通常是密码为空导致。按上面步骤“校验与重建”，确保 `REDIS_PASSWORD` 有值后 `--force-recreate` 重启。
+- **Compose 提示 version 字段 obsolete**：
+  - 该提示可忽略，不影响运行；也可自行移除 compose 文件中的 `version:` 以消除提示。
 
 ---
 
@@ -119,7 +152,13 @@ docker-compose -f docker-compose.multi-local.yml down
     ```
     然后编辑 `.env` 文件，至少需要配置好数据库、Redis和SMTP服务的连接信息。
 
-5.  **启动 PostgreSQL 数据库和 Redis**
+5.  **生成 vendor 依赖**（项目使用 `-mod=vendor`）
+    ```bash
+    go mod tidy
+    go mod vendor
+    ```
+
+6.  **启动 PostgreSQL 数据库和 Redis**
     你需要在本地手动安装并启动 PostgreSQL 和 Redis 服务，并确保已创建好应用所需的数据库。
     ```bash
     # 示例: 在 Ubuntu 上安装
@@ -129,13 +168,17 @@ docker-compose -f docker-compose.multi-local.yml down
     createdb backend
     ```
 
-6.  **运行应用**
+7.  **运行应用**
     ```bash
     go run cmd/main.go
     ```
 
-7.  **访问API文档**
+8.  **访问API文档**
     浏览器访问 `http://localhost:8080/swagger/index.html`。
+
+> 何时需要重新运行 `go mod vendor`？
+> - 新增/升级/移除依赖后。
+> - CI/CD 或 Docker 构建若在 `RUN go install -mod=vendor ...` 或 `go build -mod=vendor` 时报依赖缺失。
 
 ## API 文档
 
@@ -639,14 +682,14 @@ PORT=8080
 DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
-DB_PASSWORD=postgres
+DB_PASSWORD=your-postgres-password
 DB_NAME=backend
 DB_SSLMODE=disable
 
 # Redis 配置
 REDIS_HOST=localhost
 REDIS_PORT=6379
-REDIS_PASSWORD=
+REDIS_PASSWORD=your-redis-password
 REDIS_DB=0
 
 # SMTP 邮件服务配置
