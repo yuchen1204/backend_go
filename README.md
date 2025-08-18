@@ -1,4 +1,5 @@
 # Backend 用户注册系统
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE/LICENSE.md)
 
 这是一个基于 Go 语言和 Gin 框架的用户注册系统后端项目。
 
@@ -13,8 +14,8 @@
 - RESTful API 设计
 - PostgreSQL 数据库支持
 - 统一响应格式
-- CORS 跨域支持
-- **完整的API文档** (Swagger/OpenAPI)
+ - CORS 跨域支持
+ - **完整的API文档** (Swagger/OpenAPI)
 
 ## 技术栈
 
@@ -130,7 +131,7 @@ docker-compose -f docker-compose.multi-local.yml down
 1.  **克隆项目**
     ```bash
     git clone https://github.com/yuchen1204/backend_go
-    cd backend
+    cd backend_go
     ```
 
 2.  **安装依赖**
@@ -207,25 +208,41 @@ swag init -g cmd/main.go -o ./docs
 ## 项目结构
 
 ```
-backend/
-├── cmd/                    # 应用程序入口
+backend_go/
+├── cmd/
 │   └── main.go
-├── internal/              # 内部代码
-│   ├── config/           # 配置相关
-│   │   └── database.go
-│   ├── handler/          # HTTP 处理器
-│   │   ├── response.go
+├── internal/
+│   ├── config/
+│   │   ├── database.go
+│   │   ├── file_storage.go
+│   │   └── services.go
+│   ├── handler/
+│   │   ├── file_handler.go
 │   │   └── user_handler.go
-│   ├── model/            # 数据模型
+│   ├── middleware/
+│   │   └── auth.go
+│   ├── model/
+│   │   ├── file.go
 │   │   └── user.go
-│   ├── repository/       # 数据访问层
-│   │   └── user_repository.go
-│   ├── router/           # 路由配置
+│   ├── repository/
+│   ├── response/
+│   ├── router/
 │   │   └── router.go
-│   └── service/          # 业务逻辑层
-│       └── user_service.go
-├── configs/              # 配置文件
+│   └── service/
+├── configs/
 │   └── env.example
+├── docs/
+│   ├── swagger.json
+│   └── swagger.yaml
+├── scripts/
+│   └── generate-docs.sh
+├── uploads/
+│   ├── docs/
+│   └── avatars/
+├── sdk/
+│   └── js/
+├── LICENSE/
+│   └── LICENSE.md
 ├── go.mod
 └── README.md
 ```
@@ -526,7 +543,7 @@ Authorization: Bearer <your-access-token>
 ### 📁 文件管理接口（需要认证）
 
 #### 13. 上传单个文件
-- **POST** `/files/upload`
+- **POST** `/api/v1/files/upload`
 - **描述**: 上传单个文件到指定的存储位置（本地或S3）。支持自定义存储配置、文件分类和访问权限设置。
 - **认证**: `Bearer Token` (仅接受Access Token)
 - **内容类型**: `multipart/form-data`
@@ -567,7 +584,7 @@ Authorization: Bearer <your-access-token>
 ```
 
 #### 14. 上传多个文件
-- **POST** `/files/upload-multiple`
+- **POST** `/api/v1/files/upload-multiple`
 - **描述**: 批量上传多个文件到指定的存储位置，支持相同的配置参数。
 - **认证**: `Bearer Token` (仅接受Access Token)
 - **内容类型**: `multipart/form-data`
@@ -615,7 +632,7 @@ Authorization: Bearer <your-access-token>
 ```
 
 #### 15. 获取文件详情
-- **GET** `/files/{id}`
+- **GET** `/api/v1/files/{id}`
 - **描述**: 根据文件ID获取文件详细信息。支持公开文件无需认证访问，私有文件需要认证。
 - **认证**: 可选（公开文件无需认证，私有文件需要Bearer Token）
 
@@ -660,11 +677,10 @@ Authorization: Bearer <your-access-token>
 ```json
 {
     "code": 200,
-    "message": "服务运行正常",
+    "message": "服务正常",
     "data": {
-        "status": "healthy",
-        "timestamp": "2024-01-01T12:00:00Z",
-        "version": "v1.0.0"
+        "status": "ok",
+        "service": "backend"
     },
     "timestamp": 1640995200
 }
@@ -675,10 +691,10 @@ Authorization: Bearer <your-access-token>
 复制 `configs/env.example` 文件并根据需要修改配置：
 
 ```bash
-# 服务器配置
+# 服务器 Server
 PORT=8080
 
-# 数据库配置
+# 数据库 PostgreSQL
 DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
@@ -686,21 +702,43 @@ DB_PASSWORD=your-postgres-password
 DB_NAME=backend
 DB_SSLMODE=disable
 
-# Redis 配置
+# Redis
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=your-redis-password
 REDIS_DB=0
 
-# SMTP 邮件服务配置
+# SMTP 邮件服务
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_USERNAME=your-email@example.com
 SMTP_PASSWORD=your-email-password
 SMTP_FROM=your-email@example.com
 
-# 安全配置
+# 安全/风控 Security
 MAX_IP_REQUESTS_PER_DAY=10
+# 强烈建议使用高熵随机字符串
+JWT_SECRET=please-change-to-a-strong-random-secret
+JWT_ACCESS_TOKEN_EXPIRES_IN_MINUTES=30
+JWT_REFRESH_TOKEN_EXPIRES_IN_DAYS=7
+
+# 文件存储 File Storage
+FILE_STORAGE_DEFAULT=docs
+FILE_STORAGE_LOCAL_NAMES=docs,avatars
+# 可选：本地存储路径/URL（按需取消注释）
+# FILE_STORAGE_LOCAL_DOCS_PATH=./uploads/docs
+# FILE_STORAGE_LOCAL_DOCS_URL=http://localhost:8080/uploads/docs
+# FILE_STORAGE_LOCAL_AVATARS_PATH=./uploads/avatars
+# FILE_STORAGE_LOCAL_AVATARS_URL=http://localhost:8080/uploads/avatars
+
+# S3（如未使用可留空）
+FILE_STORAGE_S3_NAMES=
+FILE_STORAGE_S3_PRIMARY_REGION=us-east-1
+FILE_STORAGE_S3_PRIMARY_BUCKET=
+FILE_STORAGE_S3_PRIMARY_ACCESS_KEY=
+FILE_STORAGE_S3_PRIMARY_SECRET_KEY=
+FILE_STORAGE_S3_PRIMARY_ENDPOINT=
+FILE_STORAGE_S3_PRIMARY_BASE_URL=
 ```
 
 ## API 接口概览
@@ -783,20 +821,36 @@ go vet ./...
 
 #### 本地存储配置
 ```bash
-# 支持多个本地存储
-FILE_STORAGE_LOCAL_NAMES=default,avatar,document
-FILE_STORAGE_LOCAL_DEFAULT_PATH=./uploads/default
-FILE_STORAGE_LOCAL_DEFAULT_URL=http://localhost:8080/uploads/default
+# 支持多个本地存储（以逗号分隔）
+FILE_STORAGE_LOCAL_NAMES=docs,avatars
+
+# 可按名称覆写路径与URL（可选）
+FILE_STORAGE_LOCAL_DOCS_PATH=./uploads/docs
+FILE_STORAGE_LOCAL_DOCS_URL=http://localhost:8080/uploads/docs
+FILE_STORAGE_LOCAL_AVATARS_PATH=./uploads/avatars
+FILE_STORAGE_LOCAL_AVATARS_URL=http://localhost:8080/uploads/avatars
 ```
 
 #### S3存储配置
 ```bash
-# 支持多个S3存储桶
-FILE_STORAGE_S3_NAMES=main,backup
-FILE_STORAGE_S3_MAIN_REGION=us-east-1
-FILE_STORAGE_S3_MAIN_BUCKET=my-app-files
-FILE_STORAGE_S3_MAIN_ACCESS_KEY=your-access-key
-FILE_STORAGE_S3_MAIN_SECRET_KEY=your-secret-key
+# 支持多个S3存储（以逗号分隔）
+FILE_STORAGE_S3_NAMES=primary,backups
+
+# primary 存储示例
+FILE_STORAGE_S3_PRIMARY_REGION=us-east-1
+FILE_STORAGE_S3_PRIMARY_BUCKET=my-primary-bucket
+FILE_STORAGE_S3_PRIMARY_ACCESS_KEY=your-primary-access-key
+FILE_STORAGE_S3_PRIMARY_SECRET_KEY=your-primary-secret-key
+FILE_STORAGE_S3_PRIMARY_ENDPOINT=
+FILE_STORAGE_S3_PRIMARY_BASE_URL=
+
+# backups 存储示例
+FILE_STORAGE_S3_BACKUPS_REGION=eu-west-1
+FILE_STORAGE_S3_BACKUPS_BUCKET=my-backups-bucket
+FILE_STORAGE_S3_BACKUPS_ACCESS_KEY=your-backups-access-key
+FILE_STORAGE_S3_BACKUPS_SECRET_KEY=your-backups-secret-key
+FILE_STORAGE_S3_BACKUPS_ENDPOINT=
+FILE_STORAGE_S3_BACKUPS_BASE_URL=
 ```
 
 ### 使用示例
@@ -860,3 +914,7 @@ go build -o backend cmd/main.go
 - 接口驱动开发
 - GORM 自动数据库迁移
 - 统一响应格式
+
+## 许可证
+
+本项目基于 MIT 许可证开源。请查看 `LICENSE/LICENSE.md` 了解详细条款。
