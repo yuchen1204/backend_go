@@ -1,0 +1,1039 @@
+basePath: /api/v1
+definitions:
+  model.FileListResponse:
+    properties:
+      files:
+        items:
+          $ref: '#/definitions/model.FileResponse'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  model.FileResponse:
+    properties:
+      category:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      is_public:
+        type: boolean
+      mime_type:
+        type: string
+      original_name:
+        type: string
+      size:
+        type: integer
+      storage_name:
+        type: string
+      storage_type:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+      user_id:
+        type: string
+    type: object
+  model.FileUpdateRequest:
+    properties:
+      category:
+        description: 文件分类
+        maxLength: 50
+        type: string
+      description:
+        description: 文件描述
+        maxLength: 500
+        type: string
+      is_public:
+        description: 是否公开
+        type: boolean
+    type: object
+  model.LoginRequest:
+    properties:
+      password:
+        example: password123
+        type: string
+      username:
+        example: testuser
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  model.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+      user:
+        $ref: '#/definitions/model.UserResponse'
+    type: object
+  model.LogoutRequest:
+    properties:
+      access_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+      refresh_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    required:
+    - access_token
+    - refresh_token
+    type: object
+  model.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    required:
+    - refresh_token
+    type: object
+  model.RefreshTokenResponse:
+    properties:
+      access_token:
+        type: string
+    type: object
+  model.ResetPasswordRequest:
+    properties:
+      email:
+        example: test@example.com
+        type: string
+      new_password:
+        example: newpassword123
+        maxLength: 100
+        minLength: 6
+        type: string
+      verification_code:
+        example: "123456"
+        type: string
+    required:
+    - email
+    - new_password
+    - verification_code
+    type: object
+  model.SendCodeRequest:
+    properties:
+      email:
+        example: test@example.com
+        type: string
+      username:
+        example: testuser
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - email
+    - username
+    type: object
+  model.SendResetCodeRequest:
+    properties:
+      email:
+        example: test@example.com
+        type: string
+    required:
+    - email
+    type: object
+  model.StorageInfoResponse:
+    properties:
+      available_storages:
+        items:
+          type: string
+        type: array
+      default_storage:
+        type: string
+      local_storages:
+        items:
+          type: string
+        type: array
+      s3_storages:
+        items:
+          type: string
+        type: array
+    type: object
+  model.UpdateProfileRequest:
+    properties:
+      avatar:
+        example: https://example.com/new-avatar.jpg
+        type: string
+      bio:
+        example: 新的个人简介
+        maxLength: 500
+        type: string
+      nickname:
+        example: 新昵称
+        maxLength: 100
+        type: string
+    type: object
+  model.UserRegisterRequest:
+    properties:
+      avatar:
+        example: https://example.com/avatar.jpg
+        type: string
+      bio:
+        example: 这是我的个人简介
+        maxLength: 500
+        type: string
+      email:
+        example: test@example.com
+        type: string
+      nickname:
+        example: 测试用户
+        maxLength: 100
+        type: string
+      password:
+        example: password123
+        maxLength: 100
+        minLength: 6
+        type: string
+      username:
+        example: testuser
+        maxLength: 50
+        minLength: 3
+        type: string
+      verification_code:
+        example: "123456"
+        type: string
+    required:
+    - email
+    - password
+    - username
+    - verification_code
+    type: object
+  model.UserResponse:
+    properties:
+      avatar:
+        type: string
+      bio:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      nickname:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  response.ResponseData:
+    properties:
+      code:
+        example: 200
+        type: integer
+      data: {}
+      error: {}
+      message:
+        example: 成功
+        type: string
+      timestamp:
+        example: 1640995200
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+    url: http://www.example.com/support
+  description: 这是一个用户注册和认证系统的后端API
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Backend API
+  version: "1.0"
+paths:
+  /files/{id}:
+    delete:
+      description: 删除指定的文件（仅文件所有者可操作）
+      parameters:
+      - description: 文件ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "403":
+          description: 访问被拒绝
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "404":
+          description: 文件不存在
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      security:
+      - ApiKeyAuth: []
+      summary: 删除文件
+      tags:
+      - files
+    get:
+      description: 根据文件ID获取文件详细信息
+      parameters:
+      - description: 文件ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.FileResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "403":
+          description: 访问被拒绝
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "404":
+          description: 文件不存在
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 获取文件详情
+      tags:
+      - files
+    put:
+      consumes:
+      - application/json
+      description: 更新文件的分类、描述等信息（仅文件所有者可操作）
+      parameters:
+      - description: 文件ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.FileUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.FileResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "403":
+          description: 访问被拒绝
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "404":
+          description: 文件不存在
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      security:
+      - ApiKeyAuth: []
+      summary: 更新文件信息
+      tags:
+      - files
+  /files/my:
+    get:
+      description: 获取当前登录用户的文件列表，支持分页和筛选
+      parameters:
+      - description: 文件分类筛选
+        in: query
+        name: category
+        type: string
+      - description: 存储类型筛选
+        in: query
+        name: storage_type
+        type: string
+      - description: 存储名称筛选
+        in: query
+        name: storage_name
+        type: string
+      - description: 是否公开筛选
+        in: query
+        name: is_public
+        type: boolean
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页大小
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.FileListResponse'
+              type: object
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      security:
+      - ApiKeyAuth: []
+      summary: 获取当前用户的文件列表
+      tags:
+      - files
+  /files/public:
+    get:
+      description: 获取所有公开访问的文件列表，支持分页和筛选
+      parameters:
+      - description: 文件分类筛选
+        in: query
+        name: category
+        type: string
+      - description: 存储类型筛选
+        in: query
+        name: storage_type
+        type: string
+      - description: 存储名称筛选
+        in: query
+        name: storage_name
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页大小
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.FileListResponse'
+              type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 获取公开文件列表
+      tags:
+      - files
+  /files/storages:
+    get:
+      description: 获取系统可用的存储配置信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.StorageInfoResponse'
+              type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 获取存储信息
+      tags:
+      - files
+  /files/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传单个文件到指定的存储位置
+      parameters:
+      - description: 要上传的文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: 存储名称（可选，默认使用系统默认存储）
+        in: formData
+        name: storage_name
+        type: string
+      - description: 文件分类
+        in: formData
+        name: category
+        type: string
+      - description: 文件描述
+        in: formData
+        name: description
+        type: string
+      - description: 是否公开访问
+        in: formData
+        name: is_public
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 上传成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.FileResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "413":
+          description: 文件过大
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      security:
+      - ApiKeyAuth: []
+      summary: 上传单个文件
+      tags:
+      - files
+  /files/upload-multiple:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 批量上传多个文件到指定的存储位置
+      parameters:
+      - collectionFormat: csv
+        description: 要上传的文件列表
+        in: formData
+        items:
+          type: file
+        name: files
+        required: true
+        type: array
+      - description: 存储名称（可选，默认使用系统默认存储）
+        in: formData
+        name: storage_name
+        type: string
+      - description: 文件分类
+        in: formData
+        name: category
+        type: string
+      - description: 文件描述
+        in: formData
+        name: description
+        type: string
+      - description: 是否公开访问
+        in: formData
+        name: is_public
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 上传成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.FileResponse'
+                  type: array
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "413":
+          description: 文件过大
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      security:
+      - ApiKeyAuth: []
+      summary: 上传多个文件
+      tags:
+      - files
+  /users/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 通过用户ID获取用户详细信息
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.UserResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 根据ID获取用户信息
+      tags:
+      - 用户管理
+  /users/login:
+    post:
+      consumes:
+      - application/json
+      description: 使用用户名和密码登录，成功后返回包含Access Token、Refresh Token和用户信息的对象
+      parameters:
+      - description: 登录凭证
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登录成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.LoginResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "401":
+          description: 用户名或密码错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 用户登录
+      tags:
+      - 用户管理
+  /users/logout:
+    post:
+      consumes:
+      - application/json
+      description: 登出用户并撤销所有Token（Access Token和Refresh Token）。Access Token将被加入黑名单，立即失效。
+      parameters:
+      - description: 登出请求（需要提供access_token和refresh_token）
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.LogoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登出成功
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "401":
+          description: Token无效或两个Token不属于同一用户
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 用户登出
+      tags:
+      - 用户管理
+  /users/me:
+    get:
+      description: 根据请求头中的JWT获取当前登录用户的详细信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.UserResponse'
+              type: object
+        "401":
+          description: 未授权或Token无效
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      security:
+      - ApiKeyAuth: []
+      summary: 获取当前用户信息
+      tags:
+      - 用户管理
+    put:
+      consumes:
+      - application/json
+      description: 更新当前登录用户的基本信息（昵称、简介、头像）
+      parameters:
+      - description: 更新信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.UserResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "401":
+          description: 未授权或Token无效
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      security:
+      - ApiKeyAuth: []
+      summary: 更新当前用户信息
+      tags:
+      - 用户管理
+  /users/refresh:
+    post:
+      consumes:
+      - application/json
+      description: 使用有效的Refresh Token获取新的Access Token
+      parameters:
+      - description: 刷新Token请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 刷新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.RefreshTokenResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "401":
+          description: Refresh Token无效或已过期
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 刷新访问Token
+      tags:
+      - 用户管理
+  /users/register:
+    post:
+      consumes:
+      - application/json
+      description: 使用邮箱验证码创建新用户账户
+      parameters:
+      - description: 注册信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.UserRegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 注册成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.UserResponse'
+              type: object
+        "400":
+          description: 请求参数错误或验证码错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "409":
+          description: 用户名或邮箱已存在
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 用户注册
+      tags:
+      - 用户管理
+  /users/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: 使用邮箱验证码重置用户密码。重置成功后，该用户的所有refresh token将被撤销，需要重新登录。
+      parameters:
+      - description: 重置密码请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 密码重置成功
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "401":
+          description: 验证码错误或已过期
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "404":
+          description: 邮箱未注册
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 重置密码
+      tags:
+      - 密码管理
+  /users/send-code:
+    post:
+      consumes:
+      - application/json
+      description: 在发送验证码前，会预先检查用户名和邮箱是否都未被注册。都通过后，才会向指定邮箱发送一个用于注册的6位数验证码（5分钟内有效）。
+      parameters:
+      - description: 用户名和邮箱信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.SendCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 验证码发送成功
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "409":
+          description: 该用户名或邮箱已被注册
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "429":
+          description: 请求过于频繁
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 发送注册验证码
+      tags:
+      - 用户管理
+  /users/send-reset-code:
+    post:
+      consumes:
+      - application/json
+      description: 向指定邮箱发送用于重置密码的6位数验证码（5分钟内有效）。如果邮箱未注册，为了安全考虑也会返回成功，避免邮箱枚举攻击。
+      parameters:
+      - description: 发送重置密码验证码请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.SendResetCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 验证码发送成功
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "429":
+          description: 请求过于频繁
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 发送重置密码验证码
+      tags:
+      - 密码管理
+  /users/username/{username}:
+    get:
+      consumes:
+      - application/json
+      description: 通过用户名获取用户详细信息
+      parameters:
+      - description: 用户名
+        in: path
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.UserResponse'
+              type: object
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 根据用户名获取用户信息
+      tags:
+      - 用户管理
+securityDefinitions:
+  ApiKeyAuth:
+    description: Description for what is this security definition being used
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
