@@ -180,6 +180,53 @@ function createClient(options = {}) {
     },
   };
 
+  // Device fingerprint generation utility
+  function generateDeviceFingerprint() {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.textBaseline = 'top';
+    ctx.font = '14px Arial';
+    ctx.fillText('Device fingerprint', 2, 2);
+    
+    const fingerprint = [
+      navigator.userAgent,
+      navigator.language,
+      screen.width + 'x' + screen.height,
+      screen.colorDepth,
+      new Date().getTimezoneOffset(),
+      navigator.platform,
+      navigator.cookieEnabled,
+      canvas.toDataURL(),
+    ].join('|');
+    
+    // Simple hash function (for demo purposes)
+    let hash = 0;
+    for (let i = 0; i < fingerprint.length; i++) {
+      const char = fingerprint.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(16).padStart(8, '0');
+  }
+
+  function getDeviceName() {
+    const ua = navigator.userAgent;
+    if (/iPhone/i.test(ua)) return 'iPhone';
+    if (/iPad/i.test(ua)) return 'iPad';
+    if (/Android/i.test(ua)) return 'Android设备';
+    if (/Windows/i.test(ua)) return 'Windows电脑';
+    if (/Mac/i.test(ua)) return 'Mac电脑';
+    if (/Linux/i.test(ua)) return 'Linux设备';
+    return '未知设备';
+  }
+
+  function getDeviceType() {
+    const ua = navigator.userAgent;
+    if (/Mobile|Android|iPhone/i.test(ua)) return 'mobile';
+    if (/iPad|Tablet/i.test(ua)) return 'tablet';
+    return 'desktop';
+  }
+
   // Users & Auth APIs
   const users = {
     getById: (id) => doRequest('GET', `/users/${encodeURIComponent(id)}`),
@@ -193,13 +240,48 @@ function createClient(options = {}) {
   };
 
   const auth = {
+    // 传统登录（不带设备验证）
     login: async (payload) => {
       const data = await doRequest('POST', '/users/login', { body: payload });
-      // data: { access_token, refresh_token, user }
+      // data: { access_token, refresh_token, user } or { user, verification_required: true }
       if (data && data.access_token) state.accessToken = data.access_token;
       if (data && data.refresh_token) state.refreshToken = data.refresh_token;
       return data;
     },
+    
+    // 设备登录验证（自动生成设备指纹）
+    loginWithDevice: async ({ username, password, deviceVerifyCode, customDeviceId, customDeviceName, customDeviceType } = {}) => {
+      const payload = {
+        username,
+        password,
+        device_id: customDeviceId || generateDeviceFingerprint(),
+        device_name: customDeviceName || getDeviceName(),
+        device_type: customDeviceType || getDeviceType(),
+      };
+      
+      if (deviceVerifyCode) {
+        payload.device_verification_code = deviceVerifyCode;
+      }
+      
+      const data = await doRequest('POST', '/users/login', { body: payload });
+      
+      // 如果返回了 token，说明登录成功
+      if (data && data.access_token) {
+        state.accessToken = data.access_token;
+        state.refreshToken = data.refresh_token;
+      }
+      
+      return data;
+    },
+    
+    // 手动设备登录（完全自定义参数）
+    loginWithCustomDevice: async (payload) => {
+      const data = await doRequest('POST', '/users/login', { body: payload });
+      if (data && data.access_token) state.accessToken = data.access_token;
+      if (data && data.refresh_token) state.refreshToken = data.refresh_token;
+      return data;
+    },
+    
     logout: async (payload) => {
       const actualPayload = payload || (state.accessToken && state.refreshToken ? { access_token: state.accessToken, refresh_token: state.refreshToken } : undefined);
       if (!actualPayload) throw new Error('logout requires { access_token, refresh_token }');
@@ -230,6 +312,11 @@ function createClient(options = {}) {
     // raw helpers
     _request: doRequest,
     _refreshAccessToken: refreshAccessToken,
+
+    // device utilities
+    generateDeviceFingerprint,
+    getDeviceName,
+    getDeviceType,
 
     // error class
     BackendApiError,

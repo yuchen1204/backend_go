@@ -14,6 +14,36 @@ import (
 type MailService interface {
 	SendVerificationCode(to, code string) error
 	SendResetPasswordCode(to, code string) error
+	SendDeviceVerificationCode(to, code, deviceName, ip, ua string) error
+}
+
+// SendDeviceVerificationCode 发送设备验证验证码邮件
+func (s *smtpMailService) SendDeviceVerificationCode(to, code, deviceName, ip, ua string) error {
+    m := gomail.NewMessage()
+    m.SetHeader("From", s.from)
+    m.SetHeader("To", to)
+    m.SetHeader("Subject", "设备登录验证验证码")
+
+    body := fmt.Sprintf(`
+        <p>您好,</p>
+        <p>我们检测到一个新的设备正在尝试登录您的账号，需要进行二次验证。</p>
+        <p>设备名称：<b>%s</b></p>
+        <p>来源IP：<b>%s</b></p>
+        <p>User-Agent：<b>%s</b></p>
+        <p>您的设备验证码是：<b>%s</b></p>
+        <p>此验证码将在5分钟后失效。</p>
+        <p>如果非您本人操作，请尽快修改密码并检查账号安全。</p>
+    `, deviceName, ip, ua, code)
+    m.SetBody("text/html", body)
+
+    log.Printf("准备发送设备验证验证码邮件: to=%s from=%s", to, s.from)
+    if err := s.dialer.DialAndSend(m); err != nil {
+        log.Printf("发送设备验证验证码邮件失败: host=%s port=%d username=%s to=%s err=%v", s.dialer.Host, s.dialer.Port, s.dialer.Username, to, err)
+        return fmt.Errorf("发送设备验证邮件失败(host=%s port=%d user=%s to=%s): %w", s.dialer.Host, s.dialer.Port, s.dialer.Username, to, err)
+    }
+    log.Printf("发送设备验证验证码邮件成功: to=%s", to)
+
+    return nil
 }
 
 // smtpMailService SMTP邮件服务实现

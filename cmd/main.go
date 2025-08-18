@@ -61,6 +61,7 @@ func main() {
 	refreshTokenRepo := repository.NewRefreshTokenRepository(rdb)
 	rateLimitRepo := repository.NewRateLimitRepository(rdb)
 	accessTokenBlacklistRepo := repository.NewAccessTokenBlacklistRepository(rdb)
+	deviceRepo := repository.NewDeviceRepository(db)
 
 	// 初始化服务层
 	securityCfg := config.GetSecurityConfig()
@@ -70,7 +71,7 @@ func main() {
 	mailSvc := service.NewMailService(smtpCfg)
 	jwtSvc := service.NewJwtService(securityCfg)
 	fileStorageSvc := service.NewFileStorageService(fileStorageCfg)
-	userService := service.NewUserService(userRepo, codeRepo, refreshTokenRepo, rateLimitRepo, accessTokenBlacklistRepo, mailSvc, jwtSvc, securityCfg)
+	userService := service.NewUserService(userRepo, deviceRepo, codeRepo, refreshTokenRepo, rateLimitRepo, accessTokenBlacklistRepo, mailSvc, jwtSvc, securityCfg)
 	fileService := service.NewFileService(fileRepo, fileStorageSvc)
 
 	// 初始化处理器层

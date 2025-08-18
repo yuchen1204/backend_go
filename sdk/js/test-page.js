@@ -140,10 +140,10 @@ function bindAuthSection() {
       const username = $('username').value;
       const password = $('password').value;
       const data = await client.auth.login({ username, password });
-      log('Login success', data);
+      log('传统登录成功', data);
       log('Stored tokens', client.getTokens());
     } catch (err) {
-      logError('Login', err);
+      logError('传统登录', err);
     }
   });
 
@@ -168,6 +168,160 @@ function bindAuthSection() {
     } catch (err) {
       logError('Logout', err);
     }
+  });
+}
+
+function bindDeviceAuthSection() {
+  // 生成设备指纹
+  $('generateFingerprint').addEventListener('click', () => {
+    try {
+      guardClient();
+      const fingerprint = client.generateDeviceFingerprint();
+      $('deviceId').value = fingerprint;
+      log('生成设备指纹', { fingerprint });
+    } catch (err) {
+      logError('生成设备指纹', err);
+    }
+  });
+
+  // 检测设备信息
+  $('detectDevice').addEventListener('click', () => {
+    try {
+      guardClient();
+      const deviceName = client.getDeviceName();
+      const deviceType = client.getDeviceType();
+      $('deviceName').value = deviceName;
+      $('deviceType').value = deviceType;
+      log('检测设备信息', { deviceName, deviceType });
+    } catch (err) {
+      logError('检测设备信息', err);
+    }
+  });
+
+  // 设备登录（第一步）
+  $('loginWithDevice').addEventListener('click', async () => {
+    try {
+      guardClient();
+      const username = $('username').value;
+      const password = $('password').value;
+      
+      // 如果没有设备指纹，自动生成
+      if (!$('deviceId').value) {
+        $('generateFingerprint').click();
+      }
+      if (!$('deviceName').value || !$('deviceType').value) {
+        $('detectDevice').click();
+      }
+
+      const data = await client.auth.loginWithDevice({ username, password });
+      
+      if (data.verification_required) {
+        log('设备登录 - 需要验证', data);
+        log('请查收邮件并输入验证码');
+      } else {
+        log('设备登录成功', data);
+        log('Stored tokens', client.getTokens());
+      }
+    } catch (err) {
+      logError('设备登录', err);
+    }
+  });
+
+  // 验证码登录（第二步）
+  $('loginWithVerifyCode').addEventListener('click', async () => {
+    try {
+      guardClient();
+      const username = $('username').value;
+      const password = $('password').value;
+      const deviceVerifyCode = $('deviceVerifyCode').value;
+      
+      if (!deviceVerifyCode) {
+        log('请输入验证码');
+        return;
+      }
+
+      const data = await client.auth.loginWithDevice({ 
+        username, 
+        password, 
+        deviceVerifyCode 
+      });
+      
+      log('验证码登录成功', data);
+      log('Stored tokens', client.getTokens());
+      $('deviceVerifyCode').value = ''; // 清空验证码
+    } catch (err) {
+      logError('验证码登录', err);
+    }
+  });
+
+  // 自定义设备登录
+  $('loginWithCustomDevice').addEventListener('click', async () => {
+    try {
+      guardClient();
+      const username = $('username').value;
+      const password = $('password').value;
+      const device_id = $('customDeviceId').value;
+      const device_name = $('customDeviceName').value;
+      const device_type = $('customDeviceType').value;
+      
+      if (!device_id) {
+        log('请输入自定义设备ID');
+        return;
+      }
+
+      const payload = { username, password, device_id };
+      if (device_name) payload.device_name = device_name;
+      if (device_type) payload.device_type = device_type;
+
+      const data = await client.auth.loginWithCustomDevice(payload);
+      
+      if (data.verification_required) {
+        log('自定义设备登录 - 需要验证', data);
+      } else {
+        log('自定义设备登录成功', data);
+        log('Stored tokens', client.getTokens());
+      }
+    } catch (err) {
+      logError('自定义设备登录', err);
+    }
+  });
+
+  // 完整测试流程
+  $('testDeviceFlow').addEventListener('click', async () => {
+    try {
+      guardClient();
+      log('开始完整设备验证流程测试...');
+      
+      // 1. 生成设备指纹和信息
+      $('generateFingerprint').click();
+      $('detectDevice').click();
+      
+      // 2. 执行设备登录
+      await new Promise(resolve => setTimeout(resolve, 500)); // 等待UI更新
+      $('loginWithDevice').click();
+      
+      log('流程说明：');
+      log('1. 已生成设备指纹和检测设备信息');
+      log('2. 已发起设备登录请求');
+      log('3. 请查收邮件获取验证码');
+      log('4. 在"邮件验证码"框中输入验证码');
+      log('5. 点击"提交验证码登录"完成验证');
+      
+    } catch (err) {
+      logError('完整测试流程', err);
+    }
+  });
+
+  // 清空设备信息
+  $('clearDeviceInputs').addEventListener('click', () => {
+    $('deviceId').value = '';
+    $('deviceName').value = '';
+    $('deviceType').value = '';
+    $('deviceVerifyCode').value = '';
+    $('customDeviceId').value = '';
+    $('customDeviceName').value = '';
+    $('customDeviceType').value = '';
+    log('已清空所有设备信息');
   });
 }
 
@@ -373,6 +527,7 @@ function bindRegisterSection() {
 function main() {
   bindConfigSection();
   bindAuthSection();
+  bindDeviceAuthSection();
   bindRegisterSection();
   bindUsersSection();
   bindFilesSection();

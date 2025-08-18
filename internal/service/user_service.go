@@ -53,6 +53,7 @@ type UserService interface {
 // userService 用户服务实现
 type userService struct {
 	userRepo                 repository.UserRepository
+	deviceRepo               repository.DeviceRepository
 	codeRepo                 repository.CodeRepository
 	refreshTokenRepo         repository.RefreshTokenRepository
 	rateLimitRepo            repository.RateLimitRepository
@@ -65,6 +66,7 @@ type userService struct {
 // NewUserService 创建用户服务实例
 func NewUserService(
 	userRepo repository.UserRepository,
+	deviceRepo repository.DeviceRepository,
 	codeRepo repository.CodeRepository,
 	refreshTokenRepo repository.RefreshTokenRepository,
 	rateLimitRepo repository.RateLimitRepository,
@@ -75,6 +77,7 @@ func NewUserService(
 ) UserService {
 	return &userService{
 		userRepo:                 userRepo,
+		deviceRepo:               deviceRepo,
 		codeRepo:                 codeRepo,
 		refreshTokenRepo:         refreshTokenRepo,
 		rateLimitRepo:            rateLimitRepo,
@@ -94,27 +97,150 @@ func (s *userService) Login(ctx context.Context, req *model.LoginRequest) (*mode
 		return nil, errors.New("用户名或密码错误")
 	}
 
-	// 2. 生成Token对
+	// 如果未提供设备指纹，沿用旧逻辑直接登录
+	if strings.TrimSpace(req.DeviceID) == "" {
+		return s.issueTokenPair(ctx, user)
+	}
+
+	// 2. 检查设备是否已信任
+	var device *model.UserDevice
+	d, derr := s.deviceRepo.GetDeviceByUserAndFingerprint(user.ID, req.DeviceID)
+	if derr != nil {
+		if errors.Is(derr, gorm.ErrRecordNotFound) {
+			device = nil
+		} else {
+			return nil, fmt.Errorf("查询设备失败: %w", derr)
+		}
+	} else {
+		device = d
+	}
+
+	// 已存在且已信任 -> 更新登录信息并直接签发Token
+	if device != nil && device.IsTrusted {
+		now := time.Now()
+		device.IPAddress = req.IPAddress
+		device.UserAgent = req.UserAgent
+		if req.DeviceName != "" {
+			device.DeviceName = req.DeviceName
+		}
+		if req.DeviceType != "" {
+			device.DeviceType = req.DeviceType
+		}
+		device.LastLoginAt = &now
+		_ = s.deviceRepo.UpdateDevice(device)
+		return s.issueTokenPair(ctx, user)
+	}
+
+	// 未信任设备：若带验证码则校验，否则发送验证码并提示二次验证
+	if strings.TrimSpace(req.DeviceVerifyCode) != "" {
+		v, err := s.deviceRepo.GetLatestPendingVerification(user.ID, req.DeviceID)
+		if err != nil || v == nil || v.IsVerified || time.Now().After(v.ExpiresAt) {
+			return nil, errors.New("验证码已过期或不存在，请重新获取")
+		}
+
+		if v.VerificationCode != req.DeviceVerifyCode {
+			_ = s.deviceRepo.IncrementVerificationAttempt(v.ID)
+			return nil, errors.New("验证码错误")
+		}
+
+		// 验证通过
+		if err := s.deviceRepo.MarkVerificationVerified(v.ID); err != nil {
+			return nil, fmt.Errorf("标记设备验证通过失败: %w", err)
+		}
+
+		// 信任并更新/创建设备
+		now := time.Now()
+		if device != nil {
+			device.IsTrusted = true
+			device.IPAddress = req.IPAddress
+			device.UserAgent = req.UserAgent
+			if req.DeviceName != "" {
+				device.DeviceName = req.DeviceName
+			}
+			if req.DeviceType != "" {
+				device.DeviceType = req.DeviceType
+			}
+			device.LastLoginAt = &now
+			if err := s.deviceRepo.UpdateDevice(device); err != nil {
+				return nil, fmt.Errorf("更新设备失败: %w", err)
+			}
+		} else {
+			dev := &model.UserDevice{
+				ID:         uuid.New(),
+				UserID:     user.ID,
+				DeviceID:   req.DeviceID,
+				DeviceName: req.DeviceName,
+				DeviceType: req.DeviceType,
+				UserAgent:  req.UserAgent,
+				IPAddress:  req.IPAddress,
+				IsTrusted:  true,
+				LastLoginAt: func() *time.Time { t := now; return &t }(),
+			}
+			if err := s.deviceRepo.CreateDevice(dev); err != nil {
+				return nil, fmt.Errorf("创建设备失败: %w", err)
+			}
+		}
+
+		// 通过后签发token
+		return s.issueTokenPair(ctx, user)
+	}
+
+	// 发送设备验证码并返回需要验证标记
+	code, err := s.generateVerificationCode(verificationCodeLength)
+	if err != nil {
+		return nil, fmt.Errorf("生成验证码失败: %w", err)
+	}
+	v := &model.DeviceVerification{
+		ID:               uuid.New(),
+		UserID:           user.ID,
+		DeviceID:         req.DeviceID,
+		VerificationCode: code,
+		AttemptCount:     0,
+		IPAddress:        req.IPAddress,
+		UserAgent:        req.UserAgent,
+		IsVerified:       false,
+		ExpiresAt:        time.Now().Add(verificationCodeTTL),
+	}
+	if err := s.deviceRepo.CreateVerification(v); err != nil {
+		return nil, fmt.Errorf("创建设备验证记录失败: %w", err)
+	}
+
+	// 发送邮件
+	if err := s.mailSvc.SendDeviceVerificationCode(user.Email, code, firstNonEmpty(req.DeviceName, "未知设备"), req.IPAddress, req.UserAgent); err != nil {
+		return nil, fmt.Errorf("发送设备验证邮件失败: %w", err)
+	}
+
+	return &model.LoginResponse{
+		User:                 user.ToResponse(),
+		VerificationRequired: true,
+	}, nil
+}
+
+// issueTokenPair 生成并持久化token对
+func (s *userService) issueTokenPair(ctx context.Context, user *model.User) (*model.LoginResponse, error) {
 	tokenPair, err := s.jwtSvc.GenerateTokenPair(user.ID, user.Username)
 	if err != nil {
 		return nil, fmt.Errorf("生成token失败: %w", err)
 	}
-
-	// 3. 存储Refresh Token到Redis
 	refreshTokenExpiration := time.Duration(s.securityCfg.JwtRefreshTokenExpiresInDays) * 24 * time.Hour
-	err = s.refreshTokenRepo.Store(ctx, user.ID, tokenPair.RefreshToken, refreshTokenExpiration)
-	if err != nil {
+	if err := s.refreshTokenRepo.Store(ctx, user.ID, tokenPair.RefreshToken, refreshTokenExpiration); err != nil {
 		return nil, fmt.Errorf("存储refresh token失败: %w", err)
 	}
-
-	// 4. 构建响应
-	loginResponse := &model.LoginResponse{
+	return &model.LoginResponse{
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
 		User:         user.ToResponse(),
-	}
+	}, nil
+}
 
-	return loginResponse, nil
+// firstNonEmpty 返回第一个非空字符串
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // RefreshToken handles refresh token requests

@@ -84,6 +84,10 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
+	// 由服务器端填充来源信息（IP 和 User-Agent），避免客户端伪造
+	req.IPAddress = c.ClientIP()
+	req.UserAgent = c.Request.UserAgent()
+
 	res, err := h.userService.Login(c.Request.Context(), &req)
 	if err != nil {
 		if err.Error() == "用户名或密码错误" {

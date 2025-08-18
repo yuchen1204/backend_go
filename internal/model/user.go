@@ -46,6 +46,17 @@ type SendCodeRequest struct {
 type LoginRequest struct {
 	Username string `json:"username" binding:"required" example:"testuser"`
 	Password string `json:"password" binding:"required" example:"password123"`
+	// 设备指纹（建议为客户端计算的SHA256十六进制字符串，长度64）。
+	// 若提供该字段，系统将进行陌生设备校验；未提供则按旧逻辑直接登录。
+	DeviceID         string `json:"device_id" binding:"omitempty,max=128" example:"e3b0c44298fc1c149afbf4c8996fb924..."`
+	// 可选：设备名称、类型用于记录（不参与校验）
+	DeviceName       string `json:"device_name" binding:"omitempty,max=100" example:"John's iPhone"`
+	DeviceType       string `json:"device_type" binding:"omitempty,oneof=mobile desktop tablet" example:"mobile"`
+	// 如果是第二步校验，客户端可在同一登录接口提交邮箱验证码完成验证
+	DeviceVerifyCode string `json:"device_verification_code" binding:"omitempty,len=6" example:"123456"`
+	// 由服务器端在处理器中自动填充的请求来源信息
+	IPAddress        string `json:"ip_address" binding:"omitempty,max=45" example:"203.0.113.1"`
+	UserAgent        string `json:"user_agent" binding:"omitempty,max=500" example:"Mozilla/5.0 (Windows NT 10.0; Win64; x64)..."`
 }
 
 // LoginResponse 用户登录响应结构
@@ -53,6 +64,8 @@ type LoginResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	User         *UserResponse `json:"user"`
+	// 若为陌生设备首次登录，将不会返回token，而是提示需要进行设备验证码验证
+	VerificationRequired bool `json:"verification_required,omitempty"`
 }
 
 // RefreshTokenRequest 刷新Token请求结构

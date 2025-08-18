@@ -59,9 +59,70 @@
         </div>
       </div>
       <div class="actions">
-        <button id="login">登录</button>
+        <button id="login">传统登录（无设备验证）</button>
         <button id="refresh">刷新 Access Token</button>
         <button id="logout" class="secondary">登出</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>设备登录验证</legend>
+      <div class="row">
+        <div>
+          <label>设备指纹（自动生成）：</label>
+          <input id="deviceId" type="text" readonly placeholder="点击生成设备指纹..." />
+          <button id="generateFingerprint" class="secondary">生成设备指纹</button>
+          <div class="muted">基于浏览器特征自动生成，用于识别设备</div>
+        </div>
+        <div>
+          <label>设备信息（自动检测）：</label>
+          <input id="deviceName" type="text" readonly placeholder="设备名称" />
+          <input id="deviceType" type="text" readonly placeholder="设备类型" />
+          <button id="detectDevice" class="secondary">检测设备信息</button>
+        </div>
+      </div>
+      
+      <div class="row">
+        <div>
+          <label>第一步：设备登录（触发邮件验证）</label>
+          <div class="actions">
+            <button id="loginWithDevice">设备登录</button>
+          </div>
+          <div class="muted">首次登录陌生设备会发送邮件验证码</div>
+        </div>
+        <div>
+          <label>第二步：验证码登录（完成验证）</label>
+          <input id="deviceVerifyCode" type="text" placeholder="邮件验证码（6位数字）" maxlength="6" />
+          <div class="actions">
+            <button id="loginWithVerifyCode">提交验证码登录</button>
+          </div>
+          <div class="muted">输入邮件中的验证码完成设备验证</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>自定义设备登录：</label>
+          <input id="customDeviceId" type="text" placeholder="自定义设备ID" />
+          <input id="customDeviceName" type="text" placeholder="自定义设备名称" />
+          <select id="customDeviceType">
+            <option value="">选择设备类型</option>
+            <option value="mobile">手机</option>
+            <option value="tablet">平板</option>
+            <option value="desktop">桌面</option>
+          </select>
+          <div class="actions">
+            <button id="loginWithCustomDevice">自定义设备登录</button>
+          </div>
+        </div>
+        <div>
+          <label>测试流程：</label>
+          <div class="actions">
+            <button id="testDeviceFlow">完整测试流程</button>
+            <button id="clearDeviceInputs" class="secondary">清空设备信息</button>
+          </div>
+          <div class="muted">自动执行：生成指纹 → 设备登录 → 等待验证码输入</div>
+        </div>
       </div>
     </fieldset>
 
