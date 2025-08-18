@@ -1,0 +1,27 @@
+{
+  "name": "backend-js-sdk",
+  "version": "0.1.0",
+  "description": "JavaScript SDK for Backend API (files, users, auth)",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": "./src/index.js",
+  "private": true,
+  "scripts": {
+    "start": "npm run dev",
+    "dev": "npx serve -l 5173",
+    "dev:http-server": "npx http-server -p 5173",
+    "dev:python": "python -m http.server 5173"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "sdk",
+    "api",
+    "backend",
+    "files",
+    "users",
+    "auth"
+  ],
+  "license": "MIT"
+}

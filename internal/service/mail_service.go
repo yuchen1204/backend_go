@@ -2,7 +2,10 @@ package service
 
 import (
 	"backend/internal/config"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"log"
 
 	"gopkg.in/gomail.v2"
 )
@@ -23,6 +26,19 @@ type smtpMailService struct {
 func NewMailService(cfg *config.SMTPConfig) MailService {
 	// 创建一个拨号器，用于连接SMTP服务器
 	dialer := gomail.NewDialer(cfg.Host, cfg.Port, cfg.Username, cfg.Password)
+	// 配置 TLS：显式设置 ServerName，并尽力加载系统根证书
+	var rootCAs *x509.CertPool
+	if pool, err := x509.SystemCertPool(); err != nil {
+		log.Printf("加载系统根证书失败: %v", err)
+	} else {
+		rootCAs = pool
+	}
+	dialer.TLSConfig = &tls.Config{
+		ServerName: cfg.Host,
+		RootCAs:    rootCAs, // 若为nil，Go会回退到默认；安装了 ca-certificates 后应能正常读取
+	}
+	// 启动时打印SMTP关键信息（不打印密码）
+	log.Printf("初始化SMTP拨号器: host=%s port=%d username=%s from=%s password_set=%t", cfg.Host, cfg.Port, cfg.Username, cfg.From, cfg.Password != "")
 	return &smtpMailService{
 		dialer: dialer,
 		from:   cfg.From,
@@ -47,9 +63,12 @@ func (s *smtpMailService) SendVerificationCode(to, code string) error {
 	m.SetBody("text/html", body)
 
 	// 发送邮件
+	log.Printf("准备发送注册验证码邮件: to=%s from=%s", to, s.from)
 	if err := s.dialer.DialAndSend(m); err != nil {
-		return fmt.Errorf("发送邮件失败: %w", err)
+		log.Printf("发送注册验证码邮件失败: host=%s port=%d username=%s to=%s err=%v", s.dialer.Host, s.dialer.Port, s.dialer.Username, to, err)
+		return fmt.Errorf("发送邮件失败(host=%s port=%d user=%s to=%s): %w", s.dialer.Host, s.dialer.Port, s.dialer.Username, to, err)
 	}
+	log.Printf("发送注册验证码邮件成功: to=%s", to)
 
 	return nil
 }
@@ -73,9 +92,12 @@ func (s *smtpMailService) SendResetPasswordCode(to, code string) error {
 	m.SetBody("text/html", body)
 
 	// 发送邮件
+	log.Printf("准备发送重置密码验证码邮件: to=%s from=%s", to, s.from)
 	if err := s.dialer.DialAndSend(m); err != nil {
-		return fmt.Errorf("发送重置密码邮件失败: %w", err)
+		log.Printf("发送重置密码验证码邮件失败: host=%s port=%d username=%s to=%s err=%v", s.dialer.Host, s.dialer.Port, s.dialer.Username, to, err)
+		return fmt.Errorf("发送重置密码邮件失败(host=%s port=%d user=%s to=%s): %w", s.dialer.Host, s.dialer.Port, s.dialer.Username, to, err)
 	}
+	log.Printf("发送重置密码验证码邮件成功: to=%s", to)
 
 	return nil
-} 
+}

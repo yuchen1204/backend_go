@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Backend JS SDK 测试页</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin: 20px; }
+      h2 { margin-top: 28px; }
+      fieldset { border: 1px solid #ddd; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
+      legend { padding: 0 6px; color: #555; }
+      label { display: block; margin: 8px 0 4px; }
+      input[type="text"], input[type="password"], input[type="url"], input[type="number"], textarea, select {
+        width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px;
+      }
+      button { padding: 8px 14px; border: 1px solid #1b73e8; background: #1b73e8; color: #fff; border-radius: 6px; cursor: pointer; }
+      button.secondary { background: #fff; color: #1b73e8; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .actions { display: flex; gap: 8px; margin-top: 10px; }
+      .output { white-space: pre-wrap; background: #0b1020; color: #e6edf3; padding: 12px; border-radius: 8px; overflow: auto; max-height: 40vh; }
+      .muted { color: #6b7280; font-size: 12px; }
+      .inline { display: inline-block; margin-right: 10px; }
+      /* list render */
+      .list { margin-top: 8px; padding: 8px; background: #f9fafb; border-radius: 6px; max-height: 30vh; overflow: auto; border: 1px solid #eee; }
+      .item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+      .item code { background: #eef2ff; color: #1e3a8a; padding: 2px 6px; border-radius: 4px; }
+      .badge { font-size: 12px; padding: 2px 6px; border-radius: 4px; }
+      .badge.public { background: #dcfce7; color: #166534; }
+      .badge.private { background: #fef3c7; color: #92400e; }
+    </style>
+  </head>
+  <body>
+    <h1>Backend JS SDK 测试页</h1>
+    <p class="muted">提示：请通过本地静态服务器访问此页面（避免 file:// 导致的 CORS/模块加载限制）。如：在仓库根目录执行 <code>python -m http.server 5173</code> 后访问 <code>http://localhost:5173/sdk/js/test.html</code>。</p>
+
+    <fieldset>
+      <legend>配置</legend>
+      <label>Base URL（含协议和端口）：</label>
+      <input id="baseURL" type="url" value="http://localhost:8080" />
+      <div class="muted">后端默认端口为 <code>8080</code>，SDK 会自动拼接 <code>/api/v1</code>。</div>
+      <label class="inline"><input id="autoRefresh" type="checkbox" checked /> 401 时自动刷新 Access Token</label>
+      <div class="actions">
+        <button id="initClient">初始化客户端</button>
+        <button id="showTokens" class="secondary">查看当前 Tokens</button>
+        <button id="clearTokens" class="secondary">清空 Tokens</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>认证</legend>
+      <div class="row">
+        <div>
+          <label>用户名：</label>
+          <input id="username" type="text" value="testuser" />
+        </div>
+        <div>
+          <label>密码：</label>
+          <input id="password" type="password" value="password123" />
+        </div>
+      </div>
+      <div class="actions">
+        <button id="login">登录</button>
+        <button id="refresh">刷新 Access Token</button>
+        <button id="logout" class="secondary">登出</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>注册与密码</legend>
+      <div class="row">
+        <div>
+          <label>发送注册验证码：</label>
+          <input id="regUsername" type="text" placeholder="用户名 username" />
+          <input id="regEmail" type="text" placeholder="邮箱 email" />
+          <div class="actions"><button id="sendCode">POST /users/send-code</button></div>
+        </div>
+        <div>
+          <label>注册：</label>
+          <input id="regPassword" type="password" placeholder="密码 password" />
+          <input id="regCode" type="text" placeholder="验证码 verification_code" />
+          <input id="regNickname" type="text" placeholder="昵称(可选) nickname" />
+          <input id="regAvatar" type="url" placeholder="头像URL(可选) avatar" />
+          <textarea id="regBio" rows="2" placeholder="简介(可选) bio"></textarea>
+          <div class="actions"><button id="register">POST /users/register</button></div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>发送重置密码验证码：</label>
+          <input id="resetEmail" type="text" placeholder="邮箱 email" />
+          <div class="actions"><button id="sendResetCode">POST /users/send-reset-code</button></div>
+        </div>
+        <div>
+          <label>重置密码：</label>
+          <input id="resetNewPassword" type="password" placeholder="新密码 new_password" />
+          <input id="resetCode" type="text" placeholder="验证码 verification_code" />
+          <div class="actions"><button id="resetPassword">POST /users/reset-password</button></div>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>用户</legend>
+      <div class="actions">
+        <button id="getMe">获取当前用户（鉴权）</button>
+      </div>
+      <div class="row">
+        <div>
+          <label>通过 ID 获取：</label>
+          <input id="userId" type="text" placeholder="用户ID" />
+          <button id="getById">GET /users/{id}</button>
+        </div>
+        <div>
+          <label>通过用户名获取：</label>
+          <input id="userNameQuery" type="text" placeholder="用户名" />
+          <button id="getByUsername">GET /users/username/{username}</button>
+        </div>
+      </div>
+      <label>更新当前用户：</label>
+      <div class="row">
+        <div>
+          <input id="nickname" type="text" placeholder="nickname" />
+        </div>
+        <div>
+          <input id="avatar" type="url" placeholder="avatar url" />
+        </div>
+      </div>
+      <textarea id="bio" rows="2" placeholder="bio"></textarea>
+      <div class="actions"><button id="updateMe">PUT /users/me</button></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>文件</legend>
+      <div class="row">
+        <div>
+          <label>公开文件列表：</label>
+          <div class="actions">
+            <button id="listPublic">GET /files/public</button>
+          </div>
+          <div id="publicFilesList" class="list"></div>
+        </div>
+        <div>
+          <label>我的文件列表（鉴权）：</label>
+          <div class="actions">
+            <button id="listMy">GET /files/my</button>
+          </div>
+          <div id="myFilesList" class="list"></div>
+        </div>
+      </div>
+
+      <label>获取/更新/删除文件（需要文件ID）：</label>
+      <div class="row">
+        <div>
+          <input id="fileId" type="text" placeholder="文件ID" />
+          <div class="actions">
+            <button id="getFile">GET /files/{id}</button>
+            <button id="deleteFile" class="secondary">DELETE /files/{id}</button>
+          </div>
+        </div>
+        <div>
+          <input id="fileCategory" type="text" placeholder="category" />
+          <input id="fileDesc" type="text" placeholder="description" />
+          <label class="inline"><input id="filePublic" type="checkbox" /> is_public</label>
+          <div class="actions"><button id="updateFile">PUT /files/{id}</button></div>
+        </div>
+      </div>
+
+      <label>上传文件（鉴权）：</label>
+      <div class="row">
+        <div>
+          <div class="muted">单文件上传</div>
+          <input id="singleFile" type="file" />
+          <input id="singleCategory" type="text" placeholder="category" />
+          <input id="singleDesc" type="text" placeholder="description" />
+          <input id="singleStorage" type="text" placeholder="storage_name(可选)" />
+          <label class="inline"><input id="singlePublic" type="checkbox" /> is_public</label>
+          <div class="actions"><button id="uploadSingle">POST /files/upload</button></div>
+        </div>
+        <div>
+          <div class="muted">多文件上传</div>
+          <input id="multiFiles" type="file" multiple />
+          <input id="multiCategory" type="text" placeholder="category" />
+          <input id="multiDesc" type="text" placeholder="description" />
+          <input id="multiStorage" type="text" placeholder="storage_name(可选)" />
+          <label class="inline"><input id="multiPublic" type="checkbox" /> is_public</label>
+          <div class="actions"><button id="uploadMulti">POST /files/upload-multiple</button></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="getStorages">GET /files/storages</button>
+      </div>
+    </fieldset>
+
+    <h2>输出</h2>
+    <div id="output" class="output"></div>
+
+    <script type="module" src="./test-page.js"></script>
+  </body>
+</html>

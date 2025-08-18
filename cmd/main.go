@@ -65,7 +65,9 @@ func main() {
 	// 初始化服务层
 	securityCfg := config.GetSecurityConfig()
 	fileStorageCfg := config.GetFileStorageConfig()
-	mailSvc := service.NewMailService(config.GetSMTPConfig())
+	smtpCfg := config.GetSMTPConfig()
+	log.Printf("启动时SMTP配置: host=%s port=%d username=%s from=%s password_set=%t", smtpCfg.Host, smtpCfg.Port, smtpCfg.Username, smtpCfg.From, smtpCfg.Password != "")
+	mailSvc := service.NewMailService(smtpCfg)
 	jwtSvc := service.NewJwtService(securityCfg)
 	fileStorageSvc := service.NewFileStorageService(fileStorageCfg)
 	userService := service.NewUserService(userRepo, codeRepo, refreshTokenRepo, rateLimitRepo, accessTokenBlacklistRepo, mailSvc, jwtSvc, securityCfg)

@@ -30,6 +30,12 @@ FROM debian:latest
 # 设置工作目录
 WORKDIR /root/
 
+# 安装系统 CA 证书，确保 TLS 校验证书链正常
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 # 从构建器阶段复制编译后的二进制文件
 COPY --from=builder /app/main .
 
