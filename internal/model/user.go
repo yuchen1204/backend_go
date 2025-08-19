@@ -15,6 +15,7 @@ type User struct {
 	Nickname     string    `json:"nickname" gorm:"size:100"`
 	Bio          string    `json:"bio" gorm:"type:text"`
 	Avatar       string    `json:"avatar" gorm:"size:255"`
+	Status       string    `json:"status" gorm:"default:'active';size:20"` // 用户状态：active, inactive, banned
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 	DeletedAt    gorm.DeletedAt `json:"-" gorm:"index"`
@@ -103,6 +104,17 @@ type ResetPasswordRequest struct {
 	NewPassword      string `json:"new_password" binding:"required,min=6,max=100" example:"newpassword123"`
 }
 
+// SendActivationCodeRequest 发送激活验证码请求结构
+type SendActivationCodeRequest struct {
+	Email string `json:"email" binding:"required,email" example:"test@example.com"`
+}
+
+// ActivateAccountRequest 激活账户请求结构
+type ActivateAccountRequest struct {
+	Email            string `json:"email" binding:"required,email" example:"test@example.com"`
+	VerificationCode string `json:"verification_code" binding:"required,len=6" example:"123456"`
+}
+
 // UserResponse 用户响应结构（不包含敏感信息）
 type UserResponse struct {
 	ID        uuid.UUID `json:"id"`
@@ -111,6 +123,7 @@ type UserResponse struct {
 	Nickname  string    `json:"nickname"`
 	Bio       string    `json:"bio"`
 	Avatar    string    `json:"avatar"`
+	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -124,6 +137,7 @@ func (u *User) ToResponse() *UserResponse {
 		Nickname:  u.Nickname,
 		Bio:       u.Bio,
 		Avatar:    u.Avatar,
+		Status:    u.Status,
 		CreatedAt: u.CreatedAt,
 		UpdatedAt: u.UpdatedAt,
 	}

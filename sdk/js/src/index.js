@@ -237,6 +237,8 @@ function createClient(options = {}) {
     sendCode: (payload) => doRequest('POST', '/users/send-code', { body: payload }),
     sendResetCode: (payload) => doRequest('POST', '/users/send-reset-code', { body: payload }),
     resetPassword: (payload) => doRequest('POST', '/users/reset-password', { body: payload }),
+    sendActivationCode: (payload) => doRequest('POST', '/users/send-activation-code', { body: payload }),
+    activateAccount: (payload) => doRequest('POST', '/users/activate', { body: payload }),
   };
 
   const auth = {

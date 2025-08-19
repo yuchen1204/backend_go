@@ -25,14 +25,21 @@ type SMTPConfig struct {
 	Username string
 	Password string
 	From     string
+	Sender   string
+}
+
+// AdminConfig 存储管理员面板的认证信息
+type AdminConfig struct {
+	User     string
+	Password string
 }
 
 // SecurityConfig 安全相关配置
 type SecurityConfig struct {
-	MaxRequestsPerIPPerDay     int
-	JwtSecret                  string
-	JwtAccessTokenExpiresInMinutes  int
-	JwtRefreshTokenExpiresInDays    int
+	MaxRequestsPerIPPerDay         int
+	JwtSecret                      string
+	JwtAccessTokenExpiresInMinutes int
+	JwtRefreshTokenExpiresInDays   int
 }
 
 // GetRedisConfig 获取Redis配置
@@ -47,6 +54,15 @@ func GetRedisConfig() *RedisConfig {
 }
 
 // GetSMTPConfig 获取SMTP配置
+// GetAdminConfig 获取管理员配置
+func GetAdminConfig() *AdminConfig {
+	return &AdminConfig{
+		User:     getEnv("PANEL_USER", "admin"),
+		Password: getEnv("PANEL_PASSWORD", "password"),
+	}
+}
+
+// GetSMTPConfig 获取SMTP配置
 func GetSMTPConfig() *SMTPConfig {
 	port, _ := strconv.Atoi(getEnv("SMTP_PORT", "587"))
 	return &SMTPConfig{
@@ -54,7 +70,8 @@ func GetSMTPConfig() *SMTPConfig {
 		Port:     port,
 		Username: getEnv("SMTP_USERNAME", "user@example.com"),
 		Password: getEnv("SMTP_PASSWORD", "password"),
-		From:     getEnv("SMTP_FROM", "user@example.com"),
+		From:     getEnv("SMTP_FROM", getEnv("SMTP_FROM", "user@example.com")),
+		Sender:   getEnv("SMTP_SENDER", "Sender"),
 	}
 }
 
@@ -64,10 +81,10 @@ func GetSecurityConfig() *SecurityConfig {
 	accessTokenExpires, _ := strconv.Atoi(getEnv("JWT_ACCESS_TOKEN_EXPIRES_IN_MINUTES", "30"))
 	refreshTokenExpires, _ := strconv.Atoi(getEnv("JWT_REFRESH_TOKEN_EXPIRES_IN_DAYS", "7"))
 	return &SecurityConfig{
-		MaxRequestsPerIPPerDay:          maxRequests,
-		JwtSecret:                       getEnv("JWT_SECRET", "a-very-secret-key-that-should-be-changed"),
-		JwtAccessTokenExpiresInMinutes:  accessTokenExpires,
-		JwtRefreshTokenExpiresInDays:    refreshTokenExpires,
+		MaxRequestsPerIPPerDay:         maxRequests,
+		JwtSecret:                      getEnv("JWT_SECRET", "a-very-secret-key-that-should-be-changed"),
+		JwtAccessTokenExpiresInMinutes: accessTokenExpires,
+		JwtRefreshTokenExpiresInDays:   refreshTokenExpires,
 	}
 }
 
@@ -90,4 +107,4 @@ func InitRedis() (*redis.Client, error) {
 
 	log.Println("Redis连接成功")
 	return rdb, nil
-} 
+}

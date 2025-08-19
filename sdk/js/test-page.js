@@ -133,6 +133,32 @@ function bindConfigSection() {
   });
 }
 
+function bindActivationSection() {
+  // POST /users/send-activation-code
+  $('sendActivationCode').addEventListener('click', async () => {
+    try {
+      guardClient();
+      const email = $('activationEmail').value;
+      if (!nonEmpty(email)) return log('请输入邮箱');
+      const data = await client.users.sendActivationCode({ email });
+      log('POST /users/send-activation-code', data);
+    } catch (err) { logError('POST /users/send-activation-code', err); }
+  });
+
+  // POST /users/activate
+  $('activateAccount').addEventListener('click', async () => {
+    try {
+      guardClient();
+      const email = $('activationEmail').value;
+      const verification_code = $('activationCode').value;
+      if (!nonEmpty(email)) return log('请输入邮箱');
+      if (!nonEmpty(verification_code)) return log('请输入验证码');
+      const data = await client.users.activateAccount({ email, verification_code });
+      log('POST /users/activate', data);
+    } catch (err) { logError('POST /users/activate', err); }
+  });
+}
+
 function bindAuthSection() {
   $('login').addEventListener('click', async () => {
     try {
@@ -529,6 +555,7 @@ function main() {
   bindAuthSection();
   bindDeviceAuthSection();
   bindRegisterSection();
+  bindActivationSection();
   bindUsersSection();
   bindFilesSection();
   // 初始化客户端（可选）

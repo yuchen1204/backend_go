@@ -13,7 +13,7 @@ import (
 )
 
 // SetupRoutes 设置路由
-func SetupRoutes(userHandler *handler.UserHandler, fileHandler *handler.FileHandler, jwtSvc service.JwtService, blacklistRepo repository.AccessTokenBlacklistRepository) *gin.Engine {
+func SetupRoutes(userHandler *handler.UserHandler, fileHandler *handler.FileHandler, adminHandler *handler.AdminHandler, jwtSvc service.JwtService, blacklistRepo repository.AccessTokenBlacklistRepository) *gin.Engine {
 	// 创建Gin引擎
 	r := gin.Default()
 
@@ -41,15 +41,12 @@ func SetupRoutes(userHandler *handler.UserHandler, fileHandler *handler.FileHand
 			users.POST("/send-code", userHandler.SendVerificationCode)
 			users.POST("/send-reset-code", userHandler.SendResetPasswordCode)
 			users.POST("/reset-password", userHandler.ResetPassword)
-			
-			// 需要认证的路由
-			authRoutes := users.Group("/").Use(middleware.AuthMiddleware(jwtSvc, blacklistRepo))
-			authRoutes.GET("/me", userHandler.GetMe)
-			authRoutes.PUT("/me", userHandler.UpdateProfile)
-
-			// 公开路由（不受保护）
-			users.GET("/:id", userHandler.GetUserByID)
+			users.POST("/send-activation-code", userHandler.SendActivationCode)
+			users.POST("/activate", userHandler.ActivateAccount)
+			users.GET("/me", middleware.AuthMiddleware(jwtSvc, blacklistRepo), userHandler.GetMe)
+			users.PUT("/me", middleware.AuthMiddleware(jwtSvc, blacklistRepo), userHandler.UpdateProfile)
 			users.GET("/username/:username", userHandler.GetUserByUsername)
+			users.GET("/:id", userHandler.GetUserByID)
 		}
 
 		// 文件相关路由
@@ -67,6 +64,29 @@ func SetupRoutes(userHandler *handler.UserHandler, fileHandler *handler.FileHand
 			authFileRoutes.GET("/my", fileHandler.GetUserFiles)
 			authFileRoutes.PUT("/:id", fileHandler.UpdateFile)
 			authFileRoutes.DELETE("/:id", fileHandler.DeleteFile)
+		}
+
+		// 管理员相关路由
+		admin := v1.Group("/admin")
+		{
+			admin.POST("/login", adminHandler.Login)
+
+			// 需要管理员认证的路由
+			authAdminRoutes := admin.Group("/")
+			authAdminRoutes.Use(middleware.AdminAuthMiddleware(jwtSvc))
+			authAdminRoutes.GET("/dashboard", func(c *gin.Context) {
+				adminUsername, _ := c.Get("admin_username")
+				response.SuccessResponse(c, 200, "欢迎来到管理员面板", gin.H{
+					"username": adminUsername,
+				})
+			})
+			
+			// 用户管理相关路由
+			authAdminRoutes.GET("/users", adminHandler.GetUsers)
+			authAdminRoutes.GET("/users/:id", adminHandler.GetUserDetail)
+			authAdminRoutes.PUT("/users/:id/status", adminHandler.UpdateUserStatus)
+			authAdminRoutes.DELETE("/users/:id", adminHandler.DeleteUser)
+			authAdminRoutes.GET("/stats/users", adminHandler.GetUserStats)
 		}
 	}
 

@@ -73,8 +73,9 @@ func (h *UserHandler) SendVerificationCode(c *gin.Context) {
 // @Produce json
 // @Param request body model.LoginRequest true "登录凭证"
 // @Success 200 {object} response.ResponseData{data=model.LoginResponse} "登录成功"
-// @Failure 400 {object} response.ResponseData "请求参数错误"
+// @Failure 400 {object} response.ResponseData "请求参数错误或设备验证码相关错误"
 // @Failure 401 {object} response.ResponseData "用户名或密码错误"
+// @Failure 403 {object} response.ResponseData "账户已被封禁或未激活"
 // @Failure 500 {object} response.ResponseData "服务器内部错误"
 // @Router /users/login [post]
 func (h *UserHandler) Login(c *gin.Context) {
@@ -90,10 +91,32 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 	res, err := h.userService.Login(c.Request.Context(), &req)
 	if err != nil {
-		if err.Error() == "用户名或密码错误" {
-			response.ErrorResponse(c, http.StatusUnauthorized, err.Error(), nil)
+		errMsg := err.Error()
+		
+		// 处理认证相关错误
+		if errMsg == "用户名或密码错误" {
+			response.ErrorResponse(c, http.StatusUnauthorized, errMsg, nil)
 			return
 		}
+		
+		// 处理账户状态相关错误
+		if errMsg == "账户已被封禁，无法登录" {
+			response.ErrorResponse(c, http.StatusForbidden, errMsg, nil)
+			return
+		}
+		
+		if errMsg == "账户未激活，无法登录" {
+			response.ErrorResponse(c, http.StatusForbidden, errMsg, nil)
+			return
+		}
+		
+		// 处理设备验证相关错误
+		if strings.Contains(errMsg, "验证码") {
+			response.ErrorResponse(c, http.StatusBadRequest, errMsg, nil)
+			return
+		}
+		
+		// 其他服务器内部错误
 		response.ErrorResponse(c, http.StatusInternalServerError, "登录失败", err.Error())
 		return
 	}
@@ -111,6 +134,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 // @Success 200 {object} response.ResponseData{data=model.RefreshTokenResponse} "刷新成功"
 // @Failure 400 {object} response.ResponseData "请求参数错误"
 // @Failure 401 {object} response.ResponseData "Refresh Token无效或已过期"
+// @Failure 403 {object} response.ResponseData "账户已被封禁或未激活"
 // @Failure 500 {object} response.ResponseData "服务器内部错误"
 // @Router /users/refresh [post]
 func (h *UserHandler) RefreshToken(c *gin.Context) {
@@ -122,10 +146,25 @@ func (h *UserHandler) RefreshToken(c *gin.Context) {
 
 	res, err := h.userService.RefreshToken(c.Request.Context(), &req)
 	if err != nil {
-		if strings.Contains(err.Error(), "无效") || strings.Contains(err.Error(), "失效") || strings.Contains(err.Error(), "不存在") {
-			response.ErrorResponse(c, http.StatusUnauthorized, err.Error(), nil)
+		errMsg := err.Error()
+		
+		// 处理Token相关错误
+		if strings.Contains(errMsg, "无效") || strings.Contains(errMsg, "失效") || strings.Contains(errMsg, "不存在") {
+			response.ErrorResponse(c, http.StatusUnauthorized, errMsg, nil)
 			return
 		}
+		
+		// 处理账户状态相关错误
+		if strings.Contains(errMsg, "已被封禁") {
+			response.ErrorResponse(c, http.StatusForbidden, errMsg, nil)
+			return
+		}
+		
+		if strings.Contains(errMsg, "未激活") {
+			response.ErrorResponse(c, http.StatusForbidden, errMsg, nil)
+			return
+		}
+		
 		response.ErrorResponse(c, http.StatusInternalServerError, "刷新Token失败", err.Error())
 		return
 	}
@@ -163,6 +202,101 @@ func (h *UserHandler) Logout(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, http.StatusOK, "登出成功", nil)
+}
+
+// ResetPassword 重置密码
+// @Summary 重置密码
+// @Description 使用验证码重置密码
+// @Tags 密码管理
+// @Accept json
+// @Produce json
+// @Param request body model.ResetPasswordRequest true "重置密码请求"
+// @Success 200 {object} response.ResponseData "密码重置成功"
+// @Failure 400 {object} response.ResponseData "请求参数错误或验证码错误"
+// @Failure 500 {object} response.ResponseData "服务器内部错误"
+// @Router /users/reset-password [post]
+func (h *UserHandler) ResetPassword(c *gin.Context) {
+	var req model.ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "请求参数错误", err.Error())
+		return
+	}
+
+	err := h.userService.ResetPassword(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "密码重置失败", err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, http.StatusOK, "密码重置成功", nil)
+}
+
+// SendActivationCode 发送账户激活验证码
+// @Summary 发送账户激活验证码
+// @Description 为非活跃账户发送激活验证码
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Param request body model.SendActivationCodeRequest true "激活验证码请求"
+// @Success 200 {object} response.ResponseData "验证码发送成功"
+// @Failure 400 {object} response.ResponseData "请求参数错误"
+// @Failure 429 {object} response.ResponseData "请求过于频繁"
+// @Failure 500 {object} response.ResponseData "服务器内部错误"
+// @Router /users/send-activation-code [post]
+func (h *UserHandler) SendActivationCode(c *gin.Context) {
+	var req model.SendActivationCodeRequest
+
+	// 绑定请求参数
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "请求参数错误", err.Error())
+		return
+	}
+
+	// 获取客户端IP
+	ip := c.ClientIP()
+
+	// 调用服务层发送激活验证码
+	err := h.userService.SendActivationCode(c.Request.Context(), &req, ip)
+	if err != nil {
+		if err.Error() == "请求过于频繁，请稍后再试" {
+			response.ErrorResponse(c, http.StatusTooManyRequests, "请求过于频繁", err.Error())
+			return
+		}
+		response.ErrorResponse(c, http.StatusBadRequest, "发送激活验证码失败", err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, http.StatusOK, "激活验证码已发送到您的邮箱", nil)
+}
+
+// ActivateAccount 激活账户
+// @Summary 激活账户
+// @Description 使用验证码激活非活跃账户
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Param request body model.ActivateAccountRequest true "账户激活请求"
+// @Success 200 {object} response.ResponseData "账户激活成功"
+// @Failure 400 {object} response.ResponseData "请求参数错误或验证码错误"
+// @Failure 500 {object} response.ResponseData "服务器内部错误"
+// @Router /users/activate [post]
+func (h *UserHandler) ActivateAccount(c *gin.Context) {
+	var req model.ActivateAccountRequest
+
+	// 绑定请求参数
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "请求参数错误", err.Error())
+		return
+	}
+
+	// 调用服务层激活账户
+	err := h.userService.ActivateAccount(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "账户激活失败", err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, http.StatusOK, "账户激活成功，现在可以正常登录", nil)
 }
 
 // GetMe 获取当前登录用户信息
@@ -387,39 +521,4 @@ func (h *UserHandler) SendResetPasswordCode(c *gin.Context) {
 	response.SuccessResponse(c, http.StatusOK, "验证码已发送至您的邮箱，请注意查收", nil)
 }
 
-// ResetPassword 重置密码
-// @Summary 重置密码
-// @Description 使用邮箱验证码重置用户密码。重置成功后，该用户的所有refresh token将被撤销，需要重新登录。
-// @Tags 密码管理
-// @Accept json
-// @Produce json
-// @Param request body model.ResetPasswordRequest true "重置密码请求"
-// @Success 200 {object} response.ResponseData "密码重置成功"
-// @Failure 400 {object} response.ResponseData "请求参数错误"
-// @Failure 401 {object} response.ResponseData "验证码错误或已过期"
-// @Failure 404 {object} response.ResponseData "邮箱未注册"
-// @Failure 500 {object} response.ResponseData "服务器内部错误"
-// @Router /users/reset-password [post]
-func (h *UserHandler) ResetPassword(c *gin.Context) {
-	var req model.ResetPasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorResponse(c, http.StatusBadRequest, "请求参数错误", err.Error())
-		return
-	}
-
-	err := h.userService.ResetPassword(c.Request.Context(), &req)
-	if err != nil {
-		if strings.Contains(err.Error(), "验证码") {
-			response.ErrorResponse(c, http.StatusUnauthorized, err.Error(), nil)
-			return
-		}
-		if strings.Contains(err.Error(), "邮箱未注册") {
-			response.ErrorResponse(c, http.StatusNotFound, err.Error(), nil)
-			return
-		}
-		response.ErrorResponse(c, http.StatusInternalServerError, "重置密码失败", err.Error())
-		return
-	}
-
-	response.SuccessResponse(c, http.StatusOK, "密码重置成功，请使用新密码登录", nil)
-} 
+ 

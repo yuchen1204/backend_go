@@ -73,10 +73,12 @@ func main() {
 	fileStorageSvc := service.NewFileStorageService(fileStorageCfg)
 	userService := service.NewUserService(userRepo, deviceRepo, codeRepo, refreshTokenRepo, rateLimitRepo, accessTokenBlacklistRepo, mailSvc, jwtSvc, securityCfg)
 	fileService := service.NewFileService(fileRepo, fileStorageSvc)
+	adminCfg := config.GetAdminConfig()
 
 	// 初始化处理器层
 	userHandler := handler.NewUserHandler(userService)
 	fileHandler := handler.NewFileHandler(fileService)
+	adminHandler := handler.NewAdminHandler(*adminCfg, jwtSvc, userService)
 
 	// 验证文件存储配置
 	if err := fileStorageCfg.ValidateConfigs(); err != nil {
@@ -84,7 +86,7 @@ func main() {
 	}
 
 	// 设置路由
-	r := router.SetupRoutes(userHandler, fileHandler, jwtSvc, accessTokenBlacklistRepo)
+	r := router.SetupRoutes(userHandler, fileHandler, adminHandler, jwtSvc, accessTokenBlacklistRepo)
 
 	// 启动服务器
 	port := getEnv("PORT", "8080")

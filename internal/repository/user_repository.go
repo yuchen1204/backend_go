@@ -29,6 +29,19 @@ type UserRepository interface {
 	UpdatePassword(userID uuid.UUID, passwordSalt string) error
 	// Delete 删除用户
 	Delete(id uuid.UUID) error
+	// 管理员专用方法
+	// GetUsersWithPagination 分页获取用户列表
+	GetUsersWithPagination(page, limit int, search string) ([]*model.User, int64, error)
+	// GetByUintID 根据uint类型ID获取用户（管理员用）
+	GetByUintID(id uint) (*model.User, error)
+	// UpdateStatus 更新用户状态
+	UpdateStatus(id uint, status string) error
+	// DeleteByUintID 根据uint类型ID删除用户（管理员用）
+	DeleteByUintID(id uint) error
+	// GetUserStats 获取用户统计信息
+	GetUserStats() (map[string]interface{}, error)
+	// UpdateStatusByUUID 根据UUID更新用户状态
+	UpdateStatusByUUID(id uuid.UUID, status string) error
 }
 
 // userRepository 用户仓储实现
@@ -135,4 +148,99 @@ func (r *userRepository) UpdatePassword(userID uuid.UUID, passwordSalt string) e
 // Delete 删除用户（软删除）
 func (r *userRepository) Delete(id uuid.UUID) error {
 	return r.db.Where("id = ?", id).Delete(&model.User{}).Error
+}
+
+// GetUsersWithPagination 分页获取用户列表
+func (r *userRepository) GetUsersWithPagination(page, limit int, search string) ([]*model.User, int64, error) {
+	var users []*model.User
+	var total int64
+	
+	query := r.db.Model(&model.User{})
+	
+	// 如果有搜索条件，添加搜索
+	if search != "" {
+		query = query.Where("username ILIKE ? OR email ILIKE ? OR nickname ILIKE ?", 
+			"%"+search+"%", "%"+search+"%", "%"+search+"%")
+	}
+	
+	// 获取总数
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	
+	// 分页查询
+	offset := (page - 1) * limit
+	if err := query.Offset(offset).Limit(limit).Order("created_at DESC").Find(&users).Error; err != nil {
+		return nil, 0, err
+	}
+	
+	return users, total, nil
+}
+
+// GetByUintID 根据uint类型ID获取用户（管理员用）
+func (r *userRepository) GetByUintID(id uint) (*model.User, error) {
+	var user model.User
+	err := r.db.Where("id = ?", id).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// UpdateStatus 更新用户状态
+func (r *userRepository) UpdateStatus(id uint, status string) error {
+	updates := map[string]interface{}{
+		"status":     status,
+		"updated_at": time.Now(),
+	}
+	return r.db.Model(&model.User{}).Where("id = ?", id).Updates(updates).Error
+}
+
+// DeleteByUintID 根据uint类型ID删除用户（管理员用）
+func (r *userRepository) DeleteByUintID(id uint) error {
+	return r.db.Where("id = ?", id).Delete(&model.User{}).Error
+}
+
+// GetUserStats 获取用户统计信息
+func (r *userRepository) GetUserStats() (map[string]interface{}, error) {
+	var totalUsers int64
+	var activeUsers int64
+	var inactiveUsers int64
+	var bannedUsers int64
+	
+	// 总用户数
+	if err := r.db.Model(&model.User{}).Count(&totalUsers).Error; err != nil {
+		return nil, err
+	}
+	
+	// 活跃用户数
+	if err := r.db.Model(&model.User{}).Where("status = ?", "active").Count(&activeUsers).Error; err != nil {
+		return nil, err
+	}
+	
+	// 非活跃用户数
+	if err := r.db.Model(&model.User{}).Where("status = ?", "inactive").Count(&inactiveUsers).Error; err != nil {
+		return nil, err
+	}
+	
+	// 被封禁用户数
+	if err := r.db.Model(&model.User{}).Where("status = ?", "banned").Count(&bannedUsers).Error; err != nil {
+		return nil, err
+	}
+	
+	return map[string]interface{}{
+		"total_users":    totalUsers,
+		"active_users":   activeUsers,
+		"inactive_users": inactiveUsers,
+		"banned_users":   bannedUsers,
+	}, nil
+}
+
+// UpdateStatusByUUID 根据UUID更新用户状态
+func (r *userRepository) UpdateStatusByUUID(id uuid.UUID, status string) error {
+	updates := map[string]interface{}{
+		"status":     status,
+		"updated_at": time.Now(),
+	}
+	return r.db.Model(&model.User{}).Where("id = ?", id).Updates(updates).Error
 } 

@@ -1,80 +1,102 @@
-# Backend 用户注册系统
+# Backend Go - 企业级用户认证与文件管理系统
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE/LICENSE.md)
+[![Go Version](https://img.shields.io/badge/Go-1.24.5-blue.svg)](https://golang.org/)
+[![Gin Framework](https://img.shields.io/badge/Gin-1.10.0-green.svg)](https://gin-gonic.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-7+-red.svg)](https://redis.io/)
 
-这是一个基于 Go 语言和 Gin 框架的用户注册系统后端项目。
+一个功能完善、安全可靠的企业级用户认证与文件管理系统，基于 Go 语言和现代化技术栈构建。
 
-## 功能特性
+## ✨ 核心特性
 
-- 用户注册功能
-- 密码加盐哈希存储
-- 用户信息查询（按ID和用户名）
-- **文件上传系统**（支持本地存储和S3）
-- **多存储配置**（灵活配置多个存储桶）
-- 文件管理功能（上传、下载、删除、更新）
-- RESTful API 设计
-- PostgreSQL 数据库支持
-- 统一响应格式
- - CORS 跨域支持
- - **完整的API文档** (Swagger/OpenAPI)
+### 🔐 安全认证系统
+- **双Token机制**：Access Token (30分钟) + Refresh Token (7天)
+- **陌生设备验证**：基于设备指纹的邮箱二次验证
+- **密码安全**：加盐哈希存储，支持密码重置
+- **JWT黑名单**：登出后Token立即失效
+- **频率限制**：防止暴力攻击和恶意请求
 
-## 技术栈
+### 📁 文件管理系统
+- **多存储支持**：本地存储 + AWS S3 云存储
+- **灵活配置**：支持多个存储桶独立配置
+- **文件分类**：头像、文档、图片等分类管理
+- **权限控制**：公开/私有文件访问控制
+- **批量操作**：支持多文件上传和管理
 
-- **语言**: Go 1.24.5
-- **框架**: Gin
-- **数据库**: PostgreSQL
-- **ORM**: GORM
-- **UUID**: Google UUID
-- **文件存储**: 本地存储 + AWS S3
-- **文档**: Swagger/OpenAPI
+### 🏗️ 企业级架构
+- **分层设计**：Handler → Service → Repository
+- **依赖注入**：松耦合的模块化设计
+- **统一响应**：标准化的API响应格式
+- **完整文档**：Swagger/OpenAPI 3.0 交互式文档
+- **Docker支持**：一键部署，开箱即用
 
-## 使用 Docker Compose 运行 (推荐)
+## 🛠️ 技术栈
 
-本项目提供了 Docker Compose 配置，可以一键启动应用所需的所有服务（PostgreSQL, Redis, Go Backend）。这是最简单、最推荐的运行方式。
+| 分类 | 技术选型 | 版本 | 说明 |
+|------|---------|------|------|
+| **后端语言** | Go | 1.24.5 | 高性能、并发友好 |
+| **Web框架** | Gin | 1.10.0 | 轻量级、高性能HTTP框架 |
+| **数据库** | PostgreSQL | 15+ | 企业级关系型数据库 |
+| **ORM** | GORM | 1.25.12 | Go语言最受欢迎的ORM |
+| **缓存** | Redis | 7+ | 高性能内存数据库 |
+| **认证** | JWT | 5.2.1 | 无状态Token认证 |
+| **文件存储** | AWS S3 + 本地 | - | 混合存储解决方案 |
+| **邮件服务** | SMTP | - | 支持各种邮件服务商 |
+| **API文档** | Swagger | 3.0 | 交互式API文档 |
+| **容器化** | Docker | - | 一键部署解决方案 |
 
-### 1. 准备工作
+## 🚀 快速开始
 
-首先，请确保你已经安装了 `Docker` 和 `docker-compose`。
+### 方式一：Docker Compose 部署（推荐）
 
-> 依赖使用 vendoring（`vendor/` 目录），构建前请先生成 vendor：
+使用 Docker Compose 一键启动完整的服务栈（PostgreSQL + Redis + Backend），无需手动配置环境。
+
+#### 📋 前置要求
+
+- [Docker](https://docs.docker.com/get-docker/) >= 20.0
+- [Docker Compose](https://docs.docker.com/compose/install/) >= 2.0
+
+#### 🔧 准备依赖
+
 ```bash
+# 克隆项目
+git clone https://github.com/yuchen1204/backend_go.git
+cd backend_go
+
+# 生成vendor依赖（Docker构建需要）
 go mod tidy
 go mod vendor
 ```
 
-### 2. 选择配置文件
+#### 🎯 选择部署模式
 
-我们提供了两种开箱即用的配置：
+| 配置文件 | 存储方式 | 适用场景 |
+|---------|---------|----------|
+| `docker-compose.multi-local.yml` | 本地文件系统 | 开发测试、快速体验 |
+| `docker-compose.multi-s3.yml` | AWS S3 云存储 | 生产环境、分布式部署 |
 
-- **`docker-compose.multi-local.yml`**: 使用本地文件系统作为存储。上传的文件会保存在项目根目录的 `uploads/` 文件夹下。
-- **`docker-compose.multi-s3.yml`**: 使用 AWS S3 作为文件存储。
+#### 🏃‍♂️ 启动服务
 
-### 3. 启动服务
-
-#### 选项 A: 使用本地存储 (适合快速测试)
-
+**本地存储模式（推荐新手）**
 ```bash
-# 使用 multi-local 配置文件启动所有服务
+# 一键启动所有服务
 docker-compose -f docker-compose.multi-local.yml up --build -d
+
+# 查看服务状态
+docker-compose -f docker-compose.multi-local.yml ps
 ```
 
-#### 选项 B: 使用 S3 存储 (适合生产或模拟生产环境)
-
-**在启动前**，请务-必打开 `docker-compose.multi-s3.yml` 文件，并将其中所有 `YOUR_...` 占位符替换为你的真实 AWS S3 凭证。
-
-```yaml
-      # ...
-      # S3 存储 'primary' 的配置
-      FILE_STORAGE_S3_PRIMARY_REGION: "us-east-1"  # <- 修改这里
-      FILE_STORAGE_S3_PRIMARY_BUCKET: "your-primary-bucket" # <- 修改这里
-      FILE_STORAGE_S3_PRIMARY_ACCESS_KEY: "YOUR_PRIMARY_ACCESS_KEY" # <- 修改这里
-      FILE_STORAGE_S3_PRIMARY_SECRET_KEY: "YOUR_PRIMARY_SECRET_KEY" # <- 修改这里
-      # ...
-```
-
-然后运行以下命令启动：
-
+**S3云存储模式（生产环境）**
 ```bash
-# 使用 multi-s3 配置文件启动所有服务
+# 1. 配置S3凭证（编辑docker-compose.multi-s3.yml）
+# 替换以下占位符为真实值：
+# - FILE_STORAGE_S3_PRIMARY_REGION: "us-east-1"
+# - FILE_STORAGE_S3_PRIMARY_BUCKET: "your-bucket-name"
+# - FILE_STORAGE_S3_PRIMARY_ACCESS_KEY: "your-access-key"
+# - FILE_STORAGE_S3_PRIMARY_SECRET_KEY: "your-secret-key"
+
+# 2. 启动服务
 docker-compose -f docker-compose.multi-s3.yml up --build -d
 ```
 
@@ -95,21 +117,31 @@ docker-compose -f docker-compose.multi-local.yml up -d --force-recreate
 docker-compose -f docker-compose.multi-local.yml logs -f redis
 ```
 
-### 4. 访问应用
+#### 🌐 访问服务
 
-服务启动后：
+| 服务 | 地址 | 说明 |
+|------|------|------|
+| **API服务** | http://localhost:8080 | 主要API接口 |
+| **Swagger文档** | http://localhost:8080/swagger/index.html | 交互式API文档 |
+| **健康检查** | http://localhost:8080/health | 服务状态检查 |
 
-- **应用**: `http://localhost:8080`
-- **API 文档**: `http://localhost:8080/swagger/index.html`
-
-### 5. 查看日志和停止服务
+#### 📊 服务管理
 
 ```bash
-# 查看所有服务的实时日志 (使用对应的 -f 文件)
+# 查看实时日志
 docker-compose -f docker-compose.multi-local.yml logs -f
 
-# 停止并移除所有容器、网络和卷
-docker-compose -f docker-compose.multi-local.yml down
+# 查看特定服务日志
+docker-compose -f docker-compose.multi-local.yml logs -f backend
+
+# 重启服务
+docker-compose -f docker-compose.multi-local.yml restart
+
+# 停止服务
+docker-compose -f docker-compose.multi-local.yml stop
+
+# 完全清理（删除容器、网络、卷）
+docker-compose -f docker-compose.multi-local.yml down -v
 ```
 
 ### 6. 常见问题（FAQ）
@@ -122,64 +154,51 @@ docker-compose -f docker-compose.multi-local.yml down
 - **Compose 提示 version 字段 obsolete**：
   - 该提示可忽略，不影响运行；也可自行移除 compose 文件中的 `version:` 以消除提示。
 
----
+### 方式二：本地开发部署
 
-## 快速开始 (本地手动部署)
+适合需要调试代码或自定义配置的开发者。
 
-此方法适用于不使用 Docker，希望在本地手动配置和运行所有依赖的开发者。
+#### 📋 环境要求
 
-1.  **克隆项目**
-    ```bash
-    git clone https://github.com/yuchen1204/backend_go
-    cd backend_go
-    ```
+- Go >= 1.24.5
+- PostgreSQL >= 15
+- Redis >= 7
+- Git
 
-2.  **安装依赖**
-    ```bash
-    go mod tidy
-    ```
+#### 🔧 安装步骤
 
-3.  **生成API文档**
-    ```bash
-    # (在 Linux/macOS)
-    chmod +x scripts/generate-docs.sh
-    ./scripts/generate-docs.sh
-    ```
+```bash
+# 1. 克隆项目
+git clone https://github.com/yuchen1204/backend_go.git
+cd backend_go
 
-4.  **设置环境变量**
-    复制 `configs/env.example` 文件到项目根目录，并重命名为 `.env`。
-    ```bash
-    cp configs/env.example .env
-    ```
-    然后编辑 `.env` 文件，至少需要配置好数据库、Redis和SMTP服务的连接信息。
+# 2. 安装Go依赖
+go mod tidy
+go mod vendor
 
-5.  **生成 vendor 依赖**（项目使用 `-mod=vendor`）
-    ```bash
-    go mod tidy
-    go mod vendor
-    ```
+# 3. 生成API文档
+chmod +x scripts/generate-docs.sh
+./scripts/generate-docs.sh
 
-6.  **启动 PostgreSQL 数据库和 Redis**
-    你需要在本地手动安装并启动 PostgreSQL 和 Redis 服务，并确保已创建好应用所需的数据库。
-    ```bash
-    # 示例: 在 Ubuntu 上安装
-    # sudo apt-get install postgresql postgresql-contrib redis-server
+# 4. 配置环境变量
+cp configs/env.example .env
+# 编辑.env文件，配置数据库、Redis、SMTP等信息
 
-    # 创建数据库
-    createdb backend
-    ```
+# 5. 启动数据库服务
+# PostgreSQL
+sudo systemctl start postgresql
+createdb backend
 
-7.  **运行应用**
-    ```bash
-    go run cmd/main.go
-    ```
+# Redis
+sudo systemctl start redis
 
-8.  **访问API文档**
-    浏览器访问 `http://localhost:8080/swagger/index.html`。
+# 6. 运行应用
+go run cmd/main.go
+```
 
-> 何时需要重新运行 `go mod vendor`？
-> - 新增/升级/移除依赖后。
-> - CI/CD 或 Docker 构建若在 `RUN go install -mod=vendor ...` 或 `go build -mod=vendor` 时报依赖缺失。
+#### ✅ 验证安装
+
+访问 http://localhost:8080/health 查看服务状态。
 
 ## API 文档
 
@@ -205,46 +224,42 @@ swag init -g cmd/main.go -o ./docs
 - **完整的请求/响应示例**: 包含所有字段的详细说明
 - **错误代码说明**: 详细的错误响应文档
 
-## 项目结构
+## 📁 项目结构
 
 ```
 backend_go/
-├── cmd/
-│   └── main.go
-├── internal/
-│   ├── config/
-│   │   ├── database.go
-│   │   ├── file_storage.go
-│   │   └── services.go
-│   ├── handler/
-│   │   ├── file_handler.go
-│   │   └── user_handler.go
-│   ├── middleware/
-│   │   └── auth.go
-│   ├── model/
-│   │   ├── file.go
-│   │   └── user.go
-│   ├── repository/
-│   ├── response/
-│   ├── router/
-│   │   └── router.go
-│   └── service/
-├── configs/
-│   └── env.example
-├── docs/
-│   ├── swagger.json
-│   └── swagger.yaml
-├── scripts/
-│   └── generate-docs.sh
-├── uploads/
-│   ├── docs/
-│   └── avatars/
-├── sdk/
-│   └── js/
-├── LICENSE/
-│   └── LICENSE.md
-├── go.mod
-└── README.md
+├── 📂 cmd/                    # 应用入口
+│   └── main.go               # 主程序文件
+├── 📂 internal/              # 内部代码（不对外暴露）
+│   ├── 📂 config/            # 配置管理
+│   │   ├── database.go       # 数据库配置
+│   │   ├── file_storage.go   # 文件存储配置
+│   │   └── services.go       # 服务配置
+│   ├── 📂 handler/           # HTTP处理器层
+│   │   ├── file_handler.go   # 文件管理接口
+│   │   └── user_handler.go   # 用户管理接口
+│   ├── 📂 middleware/        # 中间件
+│   │   └── auth.go           # 认证中间件
+│   ├── 📂 model/             # 数据模型
+│   │   ├── device.go         # 设备模型
+│   │   ├── file.go           # 文件模型
+│   │   └── user.go           # 用户模型
+│   ├── 📂 repository/        # 数据访问层
+│   ├── 📂 service/           # 业务逻辑层
+│   └── 📂 router/            # 路由配置
+├── 📂 configs/               # 配置文件
+│   └── env.example           # 环境变量模板
+├── 📂 docs/                  # API文档
+│   ├── swagger.json          # Swagger JSON
+│   └── swagger.yaml          # Swagger YAML
+├── 📂 scripts/               # 脚本文件
+│   └── generate-docs.sh      # 文档生成脚本
+├── 📂 uploads/               # 文件上传目录
+├── 📂 sdk/                   # 客户端SDK
+│   └── js/                   # JavaScript SDK
+├── 🐳 docker-compose*.yml    # Docker编排文件
+├── 📄 go.mod                 # Go模块文件
+└── 📖 README.md              # 项目说明
 ```
 
 ## 用户表结构
@@ -741,37 +756,112 @@ FILE_STORAGE_S3_PRIMARY_ENDPOINT=
 FILE_STORAGE_S3_PRIMARY_BASE_URL=
 ```
 
-## API 接口概览
+## 📚 API 接口概览
 
 ### 🔓 公开接口（无需认证）
-- **POST** `/api/v1/users/send-code` - 发送注册验证码
-- **POST** `/api/v1/users/register` - 用户注册
-- **POST** `/api/v1/users/login` - 用户登录
-- **POST** `/api/v1/users/refresh` - 刷新访问Token
-- **POST** `/api/v1/users/logout` - 用户登出
-- **POST** `/api/v1/users/send-reset-code` - 发送重置密码验证码
-- **POST** `/api/v1/users/reset-password` - 重置密码
-- **GET** `/api/v1/users/{id}` - 根据ID获取用户信息
-- **GET** `/api/v1/users/username/{username}` - 根据用户名获取用户信息
-- **GET** `/health` - 健康检查
+
+| 方法 | 路径 | 功能 | 说明 |
+|------|------|------|------|
+| `POST` | `/api/v1/users/send-code` | 发送注册验证码 | 邮箱验证码注册 |
+| `POST` | `/api/v1/users/register` | 用户注册 | 完成账户创建 |
+| `POST` | `/api/v1/users/login` | 用户登录 | 支持陌生设备验证 |
+| `POST` | `/api/v1/users/refresh` | 刷新Token | 获取新的Access Token |
+| `POST` | `/api/v1/users/logout` | 用户登出 | Token立即失效 |
+| `POST` | `/api/v1/users/send-reset-code` | 发送重置验证码 | 密码重置流程 |
+| `POST` | `/api/v1/users/reset-password` | 重置密码 | 使用验证码重置 |
+| `GET` | `/api/v1/users/{id}` | 获取用户信息 | 根据ID查询 |
+| `GET` | `/api/v1/users/username/{username}` | 获取用户信息 | 根据用户名查询 |
+| `GET` | `/health` | 健康检查 | 服务状态监控 |
 
 ### 🔒 需要认证的接口
-- **GET** `/api/v1/users/me` - 获取当前用户信息
-- **PUT** `/api/v1/users/me` - 更新当前用户信息
 
-### 📁 文件管理接口
+| 方法 | 路径 | 功能 | 说明 |
+|------|------|------|------|
+| `GET` | `/api/v1/users/me` | 获取当前用户信息 | 需要Access Token |
+| `PUT` | `/api/v1/users/me` | 更新用户信息 | 修改昵称、简介等 |
+| `POST` | `/api/v1/files/upload` | 上传单个文件 | 支持多存储配置 |
+| `POST` | `/api/v1/files/upload-multiple` | 批量上传文件 | 多文件同时上传 |
+| `GET` | `/api/v1/files/my` | 获取我的文件列表 | 分页查询 |
+| `PUT` | `/api/v1/files/{id}` | 更新文件信息 | 修改分类、描述等 |
+| `DELETE` | `/api/v1/files/{id}` | 删除文件 | 物理删除文件 |
 
-#### 🔓 公开接口
-- **GET** `/api/v1/files/public` - 获取公开文件列表
-- **GET** `/api/v1/files/storages` - 获取存储信息
-- **GET** `/api/v1/files/{id}` - 获取文件详情（支持公开和私有）
+## 🔐 陌生设备登录验证
 
-#### 🔒 需要认证的接口
-- **POST** `/api/v1/files/upload` - 上传单个文件
-- **POST** `/api/v1/files/upload-multiple` - 上传多个文件
-- **GET** `/api/v1/files/my` - 获取当前用户文件列表
-- **PUT** `/api/v1/files/{id}` - 更新文件信息
-- **DELETE** `/api/v1/files/{id}` - 删除文件
+### 功能概述
+
+当用户从未使用过的设备登录时，系统会自动检测并要求进行邮箱验证，确保账户安全。
+
+### 工作流程
+
+1. **设备指纹检测**
+   - 客户端生成设备指纹（建议使用SHA256哈希）
+   - 服务器检查该设备是否为用户的受信任设备
+
+2. **陌生设备处理**
+   - 如果是陌生设备，系统发送6位验证码到用户邮箱
+   - 用户需要输入验证码完成设备验证
+
+3. **设备信任建立**
+   - 验证成功后，设备被标记为受信任
+   - 后续登录无需再次验证
+
+### API使用示例
+
+**第一步：尝试登录**
+```bash
+curl -X POST "http://localhost:8080/api/v1/users/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "password": "password123",
+    "device_id": "e3b0c44298fc1c149afbf4c8996fb924...",
+    "device_name": "John'\''s iPhone",
+    "device_type": "mobile"
+  }'
+```
+
+**陌生设备响应：**
+```json
+{
+  "code": 200,
+  "message": "检测到陌生设备，已发送验证码到您的邮箱",
+  "data": {
+    "verification_required": true
+  }
+}
+```
+
+**第二步：提交验证码**
+```bash
+curl -X POST "http://localhost:8080/api/v1/users/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "password": "password123",
+    "device_id": "e3b0c44298fc1c149afbf4c8996fb924...",
+    "device_verification_code": "123456"
+  }'
+```
+
+**验证成功响应：**
+```json
+{
+  "code": 200,
+  "message": "登录成功",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": { ... }
+  }
+}
+```
+
+### 安全特性
+
+- **设备指纹唯一性**：基于硬件和软件特征生成
+- **验证码时效性**：5分钟内有效，防止重放攻击
+- **尝试次数限制**：防止暴力破解验证码
+- **IP地址记录**：记录登录来源，便于安全审计
 
 ## 测试 API
 

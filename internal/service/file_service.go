@@ -255,10 +255,10 @@ func (s *fileService) getBoolValue(value *bool, defaultValue bool) bool {
 }
 
 // rollbackUploadedFiles 回滚已上传的文件
-func (s *fileService) rollbackUploadedFiles(ctx context.Context, uploadedFiles []string) {
+func (s *fileService) rollbackUploadedFiles(_ context.Context, uploadedFiles []string) {
 	for _, fileInfo := range uploadedFiles {
 		// 解析存储名称和路径
 		// 这里可以根据实际需要实现更复杂的回滚逻辑
 		fmt.Printf("Rolling back uploaded file: %s\n", fileInfo)
 	}
-} 
+}

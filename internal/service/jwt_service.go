@@ -25,6 +25,13 @@ type JWTClaims struct {
 	jwt.RegisteredClaims
 }
 
+// AdminClaims defines the structure of the admin JWT claims.
+type AdminClaims struct {
+	Username  string    `json:"username"`
+	TokenType TokenType `json:"token_type"`
+	jwt.RegisteredClaims
+}
+
 // TokenPair represents a pair of access and refresh tokens
 type TokenPair struct {
 	AccessToken  string `json:"access_token"`
@@ -43,6 +50,10 @@ type JwtService interface {
 	ValidateToken(tokenString string) (*JWTClaims, error)
 	// GetTokenRemainingTTL calculates the remaining time until token expiration
 	GetTokenRemainingTTL(tokenString string) (time.Duration, error)
+	// GenerateAdminToken generates a new token for an admin user
+	GenerateAdminToken(username string) (string, error)
+	// ValidateAdminToken validates an admin JWT string and returns the claims if valid
+	ValidateAdminToken(tokenString string) (*AdminClaims, error)
 }
 
 // jwtService is the implementation of JwtService.
@@ -154,4 +165,49 @@ func (s *jwtService) GetTokenRemainingTTL(tokenString string) (time.Duration, er
 	}
 
 	return remainingTime, nil
-} 
+}
+
+// GenerateAdminToken generates a new token for an admin user
+func (s *jwtService) GenerateAdminToken(username string) (string, error) {
+	duration := time.Duration(s.accessTokenExpirationInMinutes) * time.Minute
+
+	claims := &AdminClaims{
+		Username:  username,
+		TokenType: AccessToken,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+			Issuer:    "backend-app-admin",
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	signedToken, err := token.SignedString(s.secretKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign admin token: %w", err)
+	}
+
+	return signedToken, nil
+}
+
+// ValidateAdminToken validates an admin JWT string and returns the claims if valid
+func (s *jwtService) ValidateAdminToken(tokenString string) (*AdminClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &AdminClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return s.secretKey, nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse admin token: %w", err)
+	}
+
+	if claims, ok := token.Claims.(*AdminClaims); ok && token.Valid {
+		return claims, nil
+	}
+
+	return nil, fmt.Errorf("invalid admin token")
+}

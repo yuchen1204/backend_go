@@ -48,6 +48,25 @@ type UserService interface {
 	GetByUsername(username string) (*model.UserResponse, error)
 	// ValidatePassword 验证密码
 	ValidatePassword(username, password string) (*model.User, error)
+	// 管理员专用方法
+	// GetUsersForAdmin 获取用户列表（管理员用）
+	GetUsersForAdmin(page, limit int, search string) ([]*model.UserResponse, int64, error)
+	// GetUserByID 根据ID获取用户（管理员用）
+	GetUserByID(id uint) (*model.UserResponse, error)
+	// UpdateUserStatus 更新用户状态
+	UpdateUserStatus(id uint, status string) error
+	// DeleteUser 删除用户
+	DeleteUser(id uint) error
+	// GetUserStats 获取用户统计信息
+	GetUserStats() (map[string]interface{}, error)
+	// UpdateUserStatusByUUID 根据UUID更新用户状态
+	UpdateUserStatusByUUID(id uuid.UUID, status string) error
+	// DeleteUserByUUID 根据UUID删除用户
+	DeleteUserByUUID(id uuid.UUID) error
+	// SendActivationCode 发送账户激活验证码
+	SendActivationCode(ctx context.Context, req *model.SendActivationCodeRequest, ip string) error
+	// ActivateAccount 激活账户
+	ActivateAccount(ctx context.Context, req *model.ActivateAccountRequest) error
 }
 
 // userService 用户服务实现
@@ -93,7 +112,12 @@ func (s *userService) Login(ctx context.Context, req *model.LoginRequest) (*mode
 	// 1. 验证用户名和密码
 	user, err := s.ValidatePassword(req.Username, req.Password)
 	if err != nil {
-		// To avoid user enumeration, return a generic error message.
+		// 检查是否是账户状态相关的错误，如果是则直接返回具体错误信息
+		errMsg := err.Error()
+		if errMsg == "账户已被封禁，无法登录" || errMsg == "账户未激活，无法登录" {
+			return nil, err
+		}
+		// 其他错误（如用户名不存在、密码错误等）统一返回通用错误信息，避免用户枚举攻击
 		return nil, errors.New("用户名或密码错误")
 	}
 
@@ -265,7 +289,21 @@ func (s *userService) RefreshToken(ctx context.Context, req *model.RefreshTokenR
 		return nil, errors.New("refresh token已失效或不存在")
 	}
 
-	// 4. 生成新的Access Token
+	// 4. 检查用户当前状态
+	user, err := s.userRepo.GetByID(claims.UserID)
+	if err != nil {
+		return nil, errors.New("用户不存在")
+	}
+	if user.Status == "banned" {
+		// 封禁用户，立即删除其所有refresh token
+		_ = s.refreshTokenRepo.Delete(ctx, claims.UserID)
+		return nil, errors.New("账户已被封禁，无法刷新token")
+	}
+	if user.Status == "inactive" {
+		return nil, errors.New("账户未激活，无法刷新token")
+	}
+
+	// 5. 生成新的Access Token
 	newAccessToken, err := s.jwtSvc.GenerateAccessToken(claims.UserID, claims.Username)
 	if err != nil {
 		return nil, fmt.Errorf("生成新access token失败: %w", err)
@@ -518,6 +556,14 @@ func (s *userService) ValidatePassword(username, password string) (*model.User, 
 		return nil, errors.New("用户名或密码错误")
 	}
 
+	// 检查用户状态
+	if user.Status == "banned" {
+		return nil, errors.New("账户已被封禁，无法登录")
+	}
+	if user.Status == "inactive" {
+		return nil, errors.New("账户未激活，无法登录")
+	}
+
 	return user, nil
 }
 
@@ -636,4 +682,169 @@ func (s *userService) generateVerificationCode(length int) (string, error) {
 		code += n.String()
 	}
 	return code, nil
-} 
+}
+
+// GetUsersForAdmin 获取用户列表（管理员用）
+func (s *userService) GetUsersForAdmin(page, limit int, search string) ([]*model.UserResponse, int64, error) {
+	users, total, err := s.userRepo.GetUsersWithPagination(page, limit, search)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var userResponses []*model.UserResponse
+	for _, user := range users {
+		userResponses = append(userResponses, &model.UserResponse{
+			ID:        user.ID,
+			Username:  user.Username,
+			Email:     user.Email,
+			Nickname:  user.Nickname,
+			Avatar:    user.Avatar,
+			Status:    user.Status,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+		})
+	}
+
+	return userResponses, total, nil
+}
+
+// GetUserByID 根据ID获取用户（管理员用）
+func (s *userService) GetUserByID(id uint) (*model.UserResponse, error) {
+	user, err := s.userRepo.GetByUintID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.UserResponse{
+		ID:        user.ID,
+		Username:  user.Username,
+		Email:     user.Email,
+		Nickname:  user.Nickname,
+		Bio:       user.Bio,
+		Avatar:    user.Avatar,
+		Status:    user.Status,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+	}, nil
+}
+
+// UpdateUserStatus 更新用户状态
+func (s *userService) UpdateUserStatus(id uint, status string) error {
+	return s.userRepo.UpdateStatus(id, status)
+}
+
+// DeleteUser 删除用户
+func (s *userService) DeleteUser(id uint) error {
+	return s.userRepo.DeleteByUintID(id)
+}
+
+// GetUserStats 获取用户统计信息
+func (s *userService) GetUserStats() (map[string]interface{}, error) {
+	stats, err := s.userRepo.GetUserStats()
+	if err != nil {
+		return nil, err
+	}
+	return stats, nil
+}
+
+// UpdateUserStatusByUUID 根据UUID更新用户状态
+func (s *userService) UpdateUserStatusByUUID(id uuid.UUID, status string) error {
+	return s.userRepo.UpdateStatusByUUID(id, status)
+}
+
+// DeleteUserByUUID 根据UUID删除用户
+func (s *userService) DeleteUserByUUID(id uuid.UUID) error {
+	return s.userRepo.Delete(id)
+}
+
+// SendActivationCode 发送账户激活验证码
+func (s *userService) SendActivationCode(ctx context.Context, req *model.SendActivationCodeRequest, ip string) error {
+	// 1. IP频率限制检查
+	count, err := s.rateLimitRepo.Increment(ctx, ip)
+	if err != nil {
+		log.Printf("无法检查IP (%s) 的请求频率: %v", ip, err)
+	}
+	if count > int64(s.securityCfg.MaxRequestsPerIPPerDay) {
+		return errors.New("请求过于频繁，请稍后再试")
+	}
+
+	// 2. 检查用户是否存在
+	user, err := s.userRepo.GetByEmail(req.Email)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("邮箱不存在")
+		}
+		return fmt.Errorf("查询用户失败: %w", err)
+	}
+
+	// 3. 检查用户状态
+	if user.Status == "active" {
+		return errors.New("账户已激活，无需重复激活")
+	}
+	if user.Status == "banned" {
+		return errors.New("账户已被封禁，无法激活")
+	}
+
+	// 4. 生成验证码
+	code, err := s.generateVerificationCode(6)
+	if err != nil {
+		return fmt.Errorf("生成验证码失败: %w", err)
+	}
+
+	// 5. 存储验证码到Redis（5分钟过期）
+	if err := s.codeRepo.Set(ctx, req.Email, code, 5*time.Minute); err != nil {
+		return fmt.Errorf("存储验证码失败: %w", err)
+	}
+
+	// 6. 发送激活邮件
+	if err := s.mailSvc.SendVerificationCode(req.Email, code); err != nil {
+		return fmt.Errorf("发送激活邮件失败: %w", err)
+	}
+
+	return nil
+}
+
+// ActivateAccount 激活账户
+func (s *userService) ActivateAccount(ctx context.Context, req *model.ActivateAccountRequest) error {
+	// 1. 验证验证码
+	storedCode, err := s.codeRepo.Get(ctx, req.Email)
+	if err != nil {
+		return fmt.Errorf("获取验证码失败: %w", err)
+	}
+	if storedCode == "" {
+		return errors.New("验证码已过期或不存在，请重新获取")
+	}
+	if storedCode != req.VerificationCode {
+		return errors.New("验证码错误")
+	}
+
+	// 2. 检查用户是否存在
+	user, err := s.userRepo.GetByEmail(req.Email)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("邮箱不存在")
+		}
+		return fmt.Errorf("查询用户失败: %w", err)
+	}
+
+	// 3. 检查用户状态
+	if user.Status == "active" {
+		// 删除验证码
+		_ = s.codeRepo.Delete(ctx, req.Email)
+		return errors.New("账户已激活")
+	}
+	if user.Status == "banned" {
+		return errors.New("账户已被封禁，无法激活")
+	}
+
+	// 4. 激活账户
+	err = s.userRepo.UpdateStatusByUUID(user.ID, "active")
+	if err != nil {
+		return fmt.Errorf("激活账户失败: %w", err)
+	}
+
+	// 5. 删除验证码
+	_ = s.codeRepo.Delete(ctx, req.Email)
+
+	return nil
+}

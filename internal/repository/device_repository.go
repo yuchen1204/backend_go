@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // DeviceRepository 设备与设备验证仓储接口
@@ -130,11 +129,3 @@ func (r *deviceRepository) DeleteExpiredVerifications(now time.Time) error {
 	return nil
 }
 
-// 可选：创建或更新（upsert）设备的便捷方法
-// 若需要在登录时写入最新UA/IP等，可使用 ON CONFLICT(UserID, DeviceID) DO UPDATE
-func (r *deviceRepository) upsertDeviceOnFingerprint(device *model.UserDevice) error {
-	return r.db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "user_id"}, {Name: "device_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"device_name", "device_type", "user_agent", "ip_address", "location", "is_trusted", "last_login_at", "updated_at"}),
-	}).Create(device).Error
-}

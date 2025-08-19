@@ -29,3 +29,5 @@ Thumbs.db
 # 可执行文件
 /backend
 /backend.exe
+
+backend-panel/node_modules

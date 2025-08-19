@@ -160,6 +160,24 @@
         </div>
       </div>
     </fieldset>
+    
+    <fieldset>
+      <legend>账号激活</legend>
+      <div class="row">
+        <div>
+          <label>发送激活验证码：</label>
+          <input id="activationEmail" type="text" placeholder="邮箱 email" />
+          <div class="actions"><button id="sendActivationCode">POST /users/send-activation-code</button></div>
+          <div class="muted">说明：未激活用户可用此功能；系统对发送频率做了 IP 限流</div>
+        </div>
+        <div>
+          <label>激活账号：</label>
+          <input id="activationCode" type="text" placeholder="验证码 verification_code" maxlength="6" />
+          <div class="actions"><button id="activateAccount">POST /users/activate</button></div>
+          <div class="muted">提示：验证码 5 分钟有效，成功激活后验证码将被删除</div>
+        </div>
+      </div>
+    </fieldset>
 
     <fieldset>
       <legend>用户</legend>
