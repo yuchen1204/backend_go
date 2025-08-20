@@ -1,47 +1,136 @@
-version: '3.3'
+version: '3.8'
 
 services:
+  # PostgreSQL数据库
   db:
-    image: postgres:15-alpine
-    container_name: postgres_db
-    restart: always
-    env_file:
-      - ./configs/.env
+    image: postgres:16-alpine
+    container_name: backend_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mysecretpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-backend}
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     networks:
-      - backend_net
+      - backend_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-backend}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # Redis缓存
   redis:
     image: redis:7-alpine
-    container_name: redis_cache
-    restart: always
-    env_file:
-      - ./configs/.env
-    command: ["sh", "-c", "redis-server --save 60 1 --loglevel warning --requirepass \"$REDIS_PASSWORD\""]
+    container_name: backend_redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-myredispassword} --appendonly yes
     volumes:
       - redis_data:/data
-    networks:
-      - backend_net
-
-  backend:
-    build: .
-    container_name: backend_go_app
-    restart: always
     ports:
-      - "8080:8080"
-    env_file:
-      - ./configs/.env
-    depends_on:
-      - db
-      - redis
+      - "6379:6379"
     networks:
-      - backend_net
+      - backend_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
+  # Go后端应用
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend_app
+    restart: unless-stopped
+    ports:
+      - "${SERVICE_PORT:-8080}:8080"
+    environment:
+      # 数据库配置
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-mysecretpassword}
+      DB_NAME: ${DB_NAME:-backend}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      
+      # Redis配置
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-myredispassword}
+      REDIS_DB: ${REDIS_DB:-0}
+      
+      # SMTP配置
+      SMTP_HOST: ${SMTP_HOST:-smtp.example.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-your-email@example.com}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-your-email-password}
+      SMTP_FROM: ${SMTP_FROM:-your-email@example.com}
+      
+      # 安全配置
+      MAX_IP_REQUESTS_PER_DAY: ${MAX_IP_REQUESTS_PER_DAY:-10}
+      JWT_SECRET: ${JWT_SECRET:-please-change-to-a-strong-random-secret}
+      JWT_ACCESS_TOKEN_EXPIRES_IN_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRES_IN_MINUTES:-30}
+      JWT_REFRESH_TOKEN_EXPIRES_IN_DAYS: ${JWT_REFRESH_TOKEN_EXPIRES_IN_DAYS:-7}
+      
+      # 管理员配置
+      PANEL_USER: ${PANEL_USER:-admin}
+      PANEL_PASSWORD: ${PANEL_PASSWORD:-admin}
+      
+      # 文件存储配置
+      FILE_STORAGE_DEFAULT: ${FILE_STORAGE_DEFAULT:-docs}
+      FILE_STORAGE_LOCAL_NAMES: ${FILE_STORAGE_LOCAL_NAMES:-docs,avatars}
+      FILE_STORAGE_S3_NAMES: ${FILE_STORAGE_S3_NAMES:-}
+      
+      # S3存储配置
+      FILE_STORAGE_S3_PRIMARY_REGION: ${FILE_STORAGE_S3_PRIMARY_REGION:-}
+      FILE_STORAGE_S3_PRIMARY_BUCKET: ${FILE_STORAGE_S3_PRIMARY_BUCKET:-}
+      FILE_STORAGE_S3_PRIMARY_ACCESS_KEY: ${FILE_STORAGE_S3_PRIMARY_ACCESS_KEY:-}
+      FILE_STORAGE_S3_PRIMARY_SECRET_KEY: ${FILE_STORAGE_S3_PRIMARY_SECRET_KEY:-}
+      FILE_STORAGE_S3_PRIMARY_ENDPOINT: ${FILE_STORAGE_S3_PRIMARY_ENDPOINT:-}
+      FILE_STORAGE_S3_PRIMARY_BASE_URL: ${FILE_STORAGE_S3_PRIMARY_BASE_URL:-}
+      
+      FILE_STORAGE_S3_BACKUPS_REGION: ${FILE_STORAGE_S3_BACKUPS_REGION:-}
+      FILE_STORAGE_S3_BACKUPS_BUCKET: ${FILE_STORAGE_S3_BACKUPS_BUCKET:-}
+      FILE_STORAGE_S3_BACKUPS_ACCESS_KEY: ${FILE_STORAGE_S3_BACKUPS_ACCESS_KEY:-}
+      FILE_STORAGE_S3_BACKUPS_SECRET_KEY: ${FILE_STORAGE_S3_BACKUPS_SECRET_KEY:-}
+      FILE_STORAGE_S3_BACKUPS_ENDPOINT: ${FILE_STORAGE_S3_BACKUPS_ENDPOINT:-}
+      FILE_STORAGE_S3_BACKUPS_BASE_URL: ${FILE_STORAGE_S3_BACKUPS_BASE_URL:-}
+      
+      # 服务端口
+      PORT: 8080
+    volumes:
+      - ./uploads:/app/uploads
+      - app_logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+
+# 数据卷
 volumes:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
+  app_logs:
+    driver: local
 
+# 网络
 networks:
-  backend_net:
+  backend_network:
     driver: bridge

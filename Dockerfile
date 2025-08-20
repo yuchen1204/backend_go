@@ -1,85 +1,51 @@
-# ---- 第一阶段：构建 Go 后端 ----
-# 使用一个支持你项目所需 Go 版本的官方镜像
-FROM golang:1.24-alpine AS go-builder
+# ---- Base Go Builder ----
+FROM golang:1.24-alpine AS builder
 
-# 设置工作目录
 WORKDIR /app
 
-# 复制 go.mod 和 go.sum 文件
+# 安装构建依赖
+RUN apk add --no-cache git
+
+# 构建Go应用
 COPY go.mod go.sum ./
-
-# 复制 vendored 依赖
-COPY vendor ./vendor
-
-# 复制所有源代码
+RUN go mod download
 COPY . .
+RUN go install github.com/swaggo/swag/cmd/swag@latest
+RUN swag init -g cmd/main.go -o ./docs
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main cmd/main.go
 
-# 从 vendored 依赖中安装 swag 工具
-RUN go install -mod=vendor github.com/swaggo/swag/cmd/swag
+# ---- Final Image ----
+FROM alpine:latest
 
-# 运行 swag init 来生成 docs 目录
-RUN /go/bin/swag init --parseInternal -g ./cmd/main.go
+# 安装运行依赖
+RUN apk --no-cache add ca-certificates tzdata
 
-# 使用 vendored 依赖进行编译
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -o /app/main ./cmd/main.go
+# 设置时区
+ENV TZ=Asia/Shanghai
 
-# ---- 第二阶段：构建前端 Admin Panel ----
-FROM node:20-alpine AS frontend-builder
+# 创建非root用户和组
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
 
-# 设置工作目录
-WORKDIR /app/frontend
+WORKDIR /app
 
-# 复制 package.json 和 package-lock.json
-COPY backend-panel/package*.json ./
+# 复制Go后端和相关文件
+COPY --from=builder /app/main .
+COPY --from=builder /app/docs ./docs
+COPY --from=builder /app/configs ./configs
 
-# 清理并重新安装依赖
-RUN npm ci
+# 创建上传目录并设置权限
+RUN mkdir -p uploads/docs uploads/avatars && \
+    chown -R appuser:appgroup /app
 
-# 复制前端源代码
-COPY backend-panel/ ./
+USER appuser
 
-# 构建前端项目
-RUN npm run build
+# 暴露后端端口
+EXPOSE 8080
 
-# ---- 第三阶段：运行 ----
-# 使用一个轻量的基础镜像
-FROM debian:latest
+# 健康检查 (针对后端服务)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
-# 设置工作目录
-WORKDIR /root/
-
-# 安装系统 CA 证书和 Python3（用于简易 HTTP 服务器），确保 TLS 校验证书链正常
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates python3 \
-    && update-ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# 从 Go 构建器阶段复制编译后的二进制文件
-COPY --from=go-builder /app/main .
-
-# 从 Go 构建器阶段复制生成的 docs 目录
-COPY --from=go-builder /app/docs ./docs
-
-# 从前端构建器阶段复制构建后的前端文件
-COPY --from=frontend-builder /app/frontend/dist ./admin-panel
-
-# 复制配置文件
-COPY configs/ /root/configs/
-
-# 创建启动脚本
-RUN echo '#!/bin/bash\n\
-# 启动后端服务\n\
-./main &\n\
-\n\
-# 启动前端静态文件服务器在1234端口\n\
-cd /root/admin-panel\n\
-python3 -m http.server 1234 &\n\
-\n\
-# 等待所有后台进程\n\
-wait' > start.sh && chmod +x start.sh
-
-# 暴露应用运行的端口
-EXPOSE 8080 1234
-
-# 容器启动时运行启动脚本
-CMD ["./start.sh"]
+# 直接启动Go应用
+CMD ["./main"]
