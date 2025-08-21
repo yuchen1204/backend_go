@@ -1,0 +1,298 @@
+/* 用户详情页面专用样式 */
+
+/* Header 布局调整 */
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+#backBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+#backBtn .material-icons {
+    font-size: 18px;
+}
+
+/* 用户信息卡片 */
+.user-info-card {
+    background: white;
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 24px;
+    align-items: center;
+}
+
+.user-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.avatar-placeholder {
+    width: 80px;
+    height: 80px;
+    background: var(--mdc-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.avatar-placeholder .material-icons {
+    font-size: 40px;
+}
+
+.user-basic-info h2 {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--mdc-on-surface);
+}
+
+.user-basic-info p {
+    margin: 0 0 12px 0;
+    color: #78909c;
+    font-size: 16px;
+}
+
+.user-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.user-id {
+    font-size: 12px;
+    color: #90a4ae;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.user-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    text-align: right;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #90a4ae;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--mdc-on-surface);
+}
+
+/* 详情区域 */
+.user-details-section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    overflow: hidden;
+}
+
+/* 标签页导航 */
+.tab-navigation {
+    display: flex;
+    border-bottom: 1px solid var(--mdc-divider);
+    background: #f8f9fa;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 16px 24px;
+    border: none;
+    background: transparent;
+    color: #78909c;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    border-bottom: 3px solid transparent;
+}
+
+.tab-btn:hover {
+    background: rgba(63, 81, 181, 0.04);
+    color: var(--mdc-primary);
+}
+
+.tab-btn.active {
+    background: white;
+    color: var(--mdc-primary);
+    border-bottom-color: var(--mdc-primary);
+}
+
+.tab-btn .material-icons {
+    font-size: 20px;
+}
+
+/* 标签页内容 */
+.tab-content {
+    display: none;
+    padding: 24px;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.tab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.tab-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--mdc-on-surface);
+}
+
+/* 日志容器 */
+.logs-container {
+    min-height: 400px;
+    max-height: 600px;
+    overflow-y: auto;
+    margin-bottom: 24px;
+    border: 1px solid var(--mdc-divider);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+/* 操作容器 */
+.operations-container {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+.operation-section {
+    border: 1px solid var(--mdc-divider);
+    border-radius: 8px;
+    padding: 24px;
+}
+
+.operation-section h4 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--mdc-on-surface);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.form-group label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--mdc-on-surface);
+}
+
+.form-control {
+    padding: 12px 16px;
+    border: 1px solid var(--mdc-divider);
+    border-radius: 8px;
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+}
+
+/* 调整操作区域下拉框尺寸，避免文字溢出 */
+#userStatusSelect.form-control {
+    height: 40px;           /* 覆盖全局紧凑高度 30px */
+    min-width: 260px;       /* 给下拉足够的显示空间 */
+    padding: 8px 12px;      /* 与整体视觉一致的内边距 */
+    line-height: 1.4;       /* 使用正常行高，避免文本被裁切 */
+    font-size: 14px;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--mdc-primary);
+    box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.1);
+}
+
+.form-group .btn {
+    align-self: flex-start;
+    margin-top: 8px;
+}
+
+/* 危险操作区域 */
+.danger-zone {
+    border-color: var(--mdc-error);
+    background: rgba(198, 40, 40, 0.02);
+}
+
+.danger-zone h4 {
+    color: var(--mdc-error);
+}
+
+.warning-text {
+    color: var(--mdc-error);
+    font-size: 14px;
+    margin: 0;
+    padding: 12px;
+    background: rgba(198, 40, 40, 0.1);
+    border-radius: 6px;
+    border-left: 4px solid var(--mdc-error);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .user-info-card {
+        grid-template-columns: 1fr;
+        text-align: center;
+        gap: 16px;
+    }
+    
+    .user-stats {
+        flex-direction: row;
+        justify-content: center;
+        text-align: center;
+    }
+    
+    .tab-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .tab-btn {
+        font-size: 12px;
+        padding: 12px 16px;
+    }
+    
+    .logs-container {
+        max-height: 400px;
+    }
+}

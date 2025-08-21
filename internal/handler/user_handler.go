@@ -5,6 +5,7 @@ import (
 	"backend/internal/model"
 	"backend/internal/response"
 	"backend/internal/service"
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -14,13 +15,15 @@ import (
 
 // UserHandler 用户处理器
 type UserHandler struct {
-	userService service.UserService
+	userService          service.UserService
+	userActionLogService service.UserActionLogService
 }
 
 // NewUserHandler 创建用户处理器实例
-func NewUserHandler(userService service.UserService) *UserHandler {
+func NewUserHandler(userService service.UserService, userActionLogService service.UserActionLogService) *UserHandler {
 	return &UserHandler{
-		userService: userService,
+		userService:          userService,
+		userActionLogService: userActionLogService,
 	}
 }
 
@@ -92,33 +95,49 @@ func (h *UserHandler) Login(c *gin.Context) {
 	res, err := h.userService.Login(c.Request.Context(), &req)
 	if err != nil {
 		errMsg := err.Error()
-		
 		// 处理认证相关错误
 		if errMsg == "用户名或密码错误" {
 			response.ErrorResponse(c, http.StatusUnauthorized, errMsg, nil)
 			return
 		}
-		
 		// 处理账户状态相关错误
 		if errMsg == "账户已被封禁，无法登录" {
 			response.ErrorResponse(c, http.StatusForbidden, errMsg, nil)
 			return
 		}
-		
 		if errMsg == "账户未激活，无法登录" {
 			response.ErrorResponse(c, http.StatusForbidden, errMsg, nil)
 			return
 		}
-		
 		// 处理设备验证相关错误
 		if strings.Contains(errMsg, "验证码") {
 			response.ErrorResponse(c, http.StatusBadRequest, errMsg, nil)
 			return
 		}
-		
 		// 其他服务器内部错误
 		response.ErrorResponse(c, http.StatusInternalServerError, "登录失败", err.Error())
 		return
+	}
+
+	// 成功后记录用户登录行为日志（不包含敏感信息）
+	if res != nil && res.User != nil {
+		detailsObj := map[string]any{
+			"device_id":   req.DeviceID,
+			"device_name": req.DeviceName,
+			"device_type": req.DeviceType,
+		}
+		detailsBytes, _ := json.Marshal(detailsObj)
+		_ = h.userActionLogService.Create(c.Request.Context(), &model.UserActionLog{
+			UserID:     &res.User.ID,
+			Username:   res.User.Username,
+			Action:     "login",
+			DeviceID:   req.DeviceID,
+			DeviceName: req.DeviceName,
+			DeviceType: req.DeviceType,
+			IPAddress:  req.IPAddress,
+			UserAgent:  req.UserAgent,
+			Details:    string(detailsBytes),
+		})
 	}
 
 	response.SuccessResponse(c, http.StatusOK, "登录成功", res)
@@ -147,24 +166,20 @@ func (h *UserHandler) RefreshToken(c *gin.Context) {
 	res, err := h.userService.RefreshToken(c.Request.Context(), &req)
 	if err != nil {
 		errMsg := err.Error()
-		
 		// 处理Token相关错误
 		if strings.Contains(errMsg, "无效") || strings.Contains(errMsg, "失效") || strings.Contains(errMsg, "不存在") {
 			response.ErrorResponse(c, http.StatusUnauthorized, errMsg, nil)
 			return
 		}
-		
 		// 处理账户状态相关错误
 		if strings.Contains(errMsg, "已被封禁") {
 			response.ErrorResponse(c, http.StatusForbidden, errMsg, nil)
 			return
 		}
-		
 		if strings.Contains(errMsg, "未激活") {
 			response.ErrorResponse(c, http.StatusForbidden, errMsg, nil)
 			return
 		}
-		
 		response.ErrorResponse(c, http.StatusInternalServerError, "刷新Token失败", err.Error())
 		return
 	}
@@ -227,6 +242,18 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 		response.ErrorResponse(c, http.StatusBadRequest, "密码重置失败", err.Error())
 		return
 	}
+
+	// 记录用户重置密码行为（不记录新密码，避免敏感信息）
+	detailsObj := map[string]any{
+		"email": req.Email,
+	}
+	detailsBytes, _ := json.Marshal(detailsObj)
+	_ = h.userActionLogService.Create(c.Request.Context(), &model.UserActionLog{
+		Action:    "reset_password",
+		IPAddress: c.ClientIP(),
+		UserAgent: c.Request.UserAgent(),
+		Details:   string(detailsBytes),
+	})
 
 	response.SuccessResponse(c, http.StatusOK, "密码重置成功", nil)
 }
@@ -378,6 +405,23 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		response.ErrorResponse(c, http.StatusInternalServerError, "更新用户信息失败", err.Error())
 		return
 	}
+
+	// 记录用户更新资料行为
+	detailsObj := map[string]any{
+		"nickname": req.Nickname,
+		"bio":      req.Bio,
+		"avatar":   req.Avatar,
+		"background_url": req.BackgroundURL,
+	}
+	detailsBytes, _ := json.Marshal(detailsObj)
+	_ = h.userActionLogService.Create(c.Request.Context(), &model.UserActionLog{
+		UserID:    &claims.UserID,
+		Username:  updatedUser.Username,
+		Action:    "update_profile",
+		IPAddress: c.ClientIP(),
+		UserAgent: c.Request.UserAgent(),
+		Details:   string(detailsBytes),
+	})
 
 	response.SuccessResponse(c, http.StatusOK, "更新成功", updatedUser)
 }

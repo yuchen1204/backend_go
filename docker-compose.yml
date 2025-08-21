@@ -49,6 +49,7 @@ services:
     restart: unless-stopped
     ports:
       - "${SERVICE_PORT:-8080}:8080"
+      - "${PANEL_PORT:-8081}:8081"
     environment:
       # 数据库配置
       DB_HOST: db

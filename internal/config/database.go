@@ -63,6 +63,8 @@ func AutoMigrate(db *gorm.DB) error {
 		&model.File{}, // 添加文件模型
 		&model.UserDevice{},
 		&model.DeviceVerification{},
+		&model.AdminActionLog{},
+		&model.UserActionLog{},
 		// 在此处添加其他模型
 	)
 }

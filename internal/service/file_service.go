@@ -29,6 +29,14 @@ type FileService interface {
 	DeleteFile(ctx context.Context, id uuid.UUID, userID *uuid.UUID) error
 	// 获取存储信息
 	GetStorageInfo(ctx context.Context) (*model.StorageInfoResponse, error)
+	// 管理员：获取所有文件列表
+	GetAllFiles(ctx context.Context, req *model.FileListRequest) (*model.FileListResponse, error)
+	// 管理员：获取任意文件详情
+	AdminGetFile(ctx context.Context, id uuid.UUID) (*model.FileResponse, error)
+	// 管理员：更新任意文件
+	AdminUpdateFile(ctx context.Context, id uuid.UUID, req *model.FileUpdateRequest) (*model.FileResponse, error)
+	// 管理员：删除任意文件
+	AdminDeleteFile(ctx context.Context, id uuid.UUID) error
 }
 
 // fileService 文件服务实现
@@ -192,8 +200,62 @@ func (s *fileService) DeleteFile(ctx context.Context, id uuid.UUID, userID *uuid
 	return s.fileRepo.Delete(id)
 }
 
+// GetAllFiles 管理员：获取所有文件列表
+func (s *fileService) GetAllFiles(ctx context.Context, req *model.FileListRequest) (*model.FileListResponse, error) {
+	return s.fileRepo.GetAllFiles(req)
+}
+
+// AdminGetFile 管理员：获取任意文件详情（不做权限校验）
+func (s *fileService) AdminGetFile(ctx context.Context, id uuid.UUID) (*model.FileResponse, error) {
+	file, err := s.fileRepo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	return file.ToResponse(), nil
+}
+
+// AdminUpdateFile 管理员：更新任意文件
+func (s *fileService) AdminUpdateFile(ctx context.Context, id uuid.UUID, req *model.FileUpdateRequest) (*model.FileResponse, error) {
+	file, err := s.fileRepo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.Category != "" {
+		file.Category = req.Category
+	}
+	if req.Description != "" {
+		file.Description = req.Description
+	}
+	if req.IsPublic != nil {
+		file.IsPublic = *req.IsPublic
+	}
+
+	if err := s.fileRepo.Update(file); err != nil {
+		return nil, err
+	}
+
+	return file.ToResponse(), nil
+}
+
+// AdminDeleteFile 管理员：删除任意文件
+func (s *fileService) AdminDeleteFile(ctx context.Context, id uuid.UUID) error {
+	file, err := s.fileRepo.GetByID(id)
+	if err != nil {
+		return err
+	}
+
+	// 先尝试从存储删除
+	if err := s.fileStorageSvc.DeleteFile(ctx, file.StorageName, file.StoragePath); err != nil {
+		// 记录警告，不阻断删除
+		fmt.Printf("Warning: admin failed to delete file from storage: %v\n", err)
+	}
+
+	return s.fileRepo.Delete(id)
+}
+
 // GetStorageInfo 获取存储信息
-func (s *fileService) GetStorageInfo(ctx context.Context) (*model.StorageInfoResponse, error) {
+func (s *fileService) GetStorageInfo(ctx context.Context) (*model .StorageInfoResponse, error) {
 	info := s.fileStorageSvc.GetStorageInfo()
 	
 	var localStorages, s3Storages []string

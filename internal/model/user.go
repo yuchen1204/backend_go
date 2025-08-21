@@ -15,7 +15,9 @@ type User struct {
 	Nickname     string    `json:"nickname" gorm:"size:100"`
 	Bio          string    `json:"bio" gorm:"type:text"`
 	Avatar       string    `json:"avatar" gorm:"size:255"`
+	BackgroundURL string   `json:"background_url" gorm:"size:512"`
 	Status       string    `json:"status" gorm:"default:'active';size:20"` // 用户状态：active, inactive, banned
+	LastLoginAt  *time.Time `json:"last_login_at" gorm:"index"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 	DeletedAt    gorm.DeletedAt `json:"-" gorm:"index"`
@@ -90,6 +92,7 @@ type UpdateProfileRequest struct {
 	Nickname string `json:"nickname" binding:"omitempty,max=100" example:"新昵称"`
 	Bio      string `json:"bio" binding:"omitempty,max=500" example:"新的个人简介"`
 	Avatar   string `json:"avatar" binding:"omitempty,url" example:"https://example.com/new-avatar.jpg"`
+	BackgroundURL string `json:"background_url" binding:"omitempty,url" example:"https://example.com/bg.jpg"`
 }
 
 // SendResetCodeRequest 发送重置密码验证码请求结构
@@ -123,7 +126,9 @@ type UserResponse struct {
 	Nickname  string    `json:"nickname"`
 	Bio       string    `json:"bio"`
 	Avatar    string    `json:"avatar"`
+	BackgroundURL string `json:"background_url"`
 	Status    string    `json:"status"`
+	LastLoginAt *time.Time `json:"last_login_at"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -137,8 +142,10 @@ func (u *User) ToResponse() *UserResponse {
 		Nickname:  u.Nickname,
 		Bio:       u.Bio,
 		Avatar:    u.Avatar,
+		BackgroundURL: u.BackgroundURL,
 		Status:    u.Status,
+		LastLoginAt: u.LastLoginAt,
 		CreatedAt: u.CreatedAt,
 		UpdatedAt: u.UpdatedAt,
 	}
-} 
+}

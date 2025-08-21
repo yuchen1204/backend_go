@@ -23,10 +23,12 @@ type UserRepository interface {
 	ExistsByEmail(email string) (bool, error)
 	// Update 更新用户信息
 	Update(user *model.User) error
-	// UpdateProfile 更新用户基本信息（昵称、简介、头像）
-	UpdateProfile(userID uuid.UUID, nickname, bio, avatar string) error
+	// UpdateProfile 更新用户基本信息（昵称、简介、头像、背景图）
+	UpdateProfile(userID uuid.UUID, nickname, bio, avatar, backgroundURL string) error
 	// UpdatePassword 更新用户密码
 	UpdatePassword(userID uuid.UUID, passwordSalt string) error
+	// UpdateLastLoginAt 更新用户最后登录时间
+	UpdateLastLoginAt(userID uuid.UUID, t time.Time) error
 	// Delete 删除用户
 	Delete(id uuid.UUID) error
 	// 管理员专用方法
@@ -110,8 +112,8 @@ func (r *userRepository) Update(user *model.User) error {
 	return r.db.Save(user).Error
 }
 
-// UpdateProfile 更新用户基本信息（昵称、简介、头像）
-func (r *userRepository) UpdateProfile(userID uuid.UUID, nickname, bio, avatar string) error {
+// UpdateProfile 更新用户基本信息（昵称、简介、头像、背景图）
+func (r *userRepository) UpdateProfile(userID uuid.UUID, nickname, bio, avatar, backgroundURL string) error {
 	updates := make(map[string]interface{})
 	
 	// 只更新非空字段
@@ -123,6 +125,9 @@ func (r *userRepository) UpdateProfile(userID uuid.UUID, nickname, bio, avatar s
 	}
 	if avatar != "" {
 		updates["avatar"] = avatar
+	}
+	if backgroundURL != "" {
+		updates["background_url"] = backgroundURL
 	}
 	
 	// 如果没有要更新的字段，直接返回
@@ -140,6 +145,15 @@ func (r *userRepository) UpdateProfile(userID uuid.UUID, nickname, bio, avatar s
 func (r *userRepository) UpdatePassword(userID uuid.UUID, passwordSalt string) error {
 	updates := map[string]interface{}{
 		"password_salt": passwordSalt,
+		"updated_at":    time.Now(),
+	}
+	return r.db.Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
+}
+
+// UpdateLastLoginAt 更新用户最后登录时间
+func (r *userRepository) UpdateLastLoginAt(userID uuid.UUID, t time.Time) error {
+	updates := map[string]interface{}{
+		"last_login_at": t,
 		"updated_at":    time.Now(),
 	}
 	return r.db.Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error

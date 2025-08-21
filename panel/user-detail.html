@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户详情 - 后台管理系统</title>
+    <!-- Material Design fonts & icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="css/admin.css">
+    <link rel="stylesheet" href="css/user-detail.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>后台管理</h2>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="dashboard.html#dashboard"><span class="material-icons">dashboard</span><span>仪表盘</span></a></li>
+                <li><a href="dashboard.html#users" class="active"><span class="material-icons">people</span><span>用户管理</span></a></li>
+                <li><a href="dashboard.html#files"><span class="material-icons">folder_open</span><span>文件管理</span></a></li>
+                <li><a href="dashboard.html#logs"><span class="material-icons">rule</span><span>操作日志</span></a></li>
+                <li><a href="#logout"><span class="material-icons">logout</span><span>退出登录</span></a></li>
+            </ul>
+        </nav>
+
+        <main class="main-content">
+            <header class="header">
+                <div class="header-left">
+                    <button id="backBtn" class="btn btn-secondary">
+                        <span class="material-icons">arrow_back</span>
+                        返回用户列表
+                    </button>
+                    <h1>用户详情</h1>
+                </div>
+                <div class="user-info">
+                    <span id="adminUsername">管理员</span>
+                    <button id="logoutBtn" class="btn btn-secondary">退出</button>
+                </div>
+            </header>
+
+            <div class="content">
+                <!-- 用户基本信息卡片 -->
+                <div class="user-info-card">
+                    <div class="user-avatar">
+                        <div class="avatar-placeholder">
+                            <span class="material-icons">person</span>
+                        </div>
+                    </div>
+                    <div class="user-basic-info">
+                        <h2 id="userDisplayName">用户名</h2>
+                        <p id="userEmail">email@example.com</p>
+                        <div class="user-meta">
+                            <span class="status-badge" id="userStatus">正常</span>
+                            <span class="user-id" id="userId">ID: xxxxxxxx</span>
+                        </div>
+                    </div>
+                    <div class="user-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">注册时间</span>
+                            <span class="stat-value" id="userCreatedAt">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">最后登录</span>
+                            <span class="stat-value" id="userLastLogin">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 详细信息区域 -->
+                <div class="user-details-section">
+                    <!-- 标签页导航 -->
+                    <div class="tab-navigation">
+                        <button class="tab-btn active" data-tab="logs">
+                            <span class="material-icons">history</span>
+                            用户日志
+                        </button>
+                        <button class="tab-btn" data-tab="operations">
+                            <span class="material-icons">settings</span>
+                            管理操作
+                        </button>
+                    </div>
+
+                    <!-- 日志标签页内容 -->
+                    <div class="tab-content active" id="tab-logs">
+                        <div class="tab-header">
+                            <h3>用户活动日志</h3>
+                            <div class="log-filters">
+                                <div class="chip-group">
+                                    <button class="chip chip-filter active" data-action="">全部</button>
+                                    <button class="chip chip-filter chip-login" data-action="login">登录</button>
+                                    <button class="chip chip-filter chip-update_profile" data-action="update_profile">资料变更</button>
+                                    <button class="chip chip-filter chip-reset_password" data-action="reset_password">重置密码</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="logs-container">
+                            <div id="userActionLogsTimeline" class="timeline">
+                                <!-- 动态渲染时间线 -->
+                            </div>
+                        </div>
+
+                        <div class="pagination">
+                            <button id="userLogsPrevPage" class="btn btn-secondary">上一页</button>
+                            <span id="userLogsPageInfo">第 1 页</span>
+                            <button id="userLogsNextPage" class="btn btn-secondary">下一页</button>
+                        </div>
+                    </div>
+
+                    <!-- 操作标签页内容 -->
+                    <div class="tab-content" id="tab-operations">
+                        <div class="tab-header">
+                            <h3>用户管理操作</h3>
+                        </div>
+                        
+                        <div class="operations-container">
+                            <!-- 状态管理 -->
+                            <div class="operation-section">
+                                <h4>账户状态</h4>
+                                <div class="form-group">
+                                    <label for="userStatusSelect">用户状态</label>
+                                    <select id="userStatusSelect" class="form-control">
+                                        <option value="active">正常</option>
+                                        <option value="inactive">未激活</option>
+                                        <option value="banned">禁用</option>
+                                    </select>
+                                    <button id="updateStatusBtn" class="btn btn-primary">更新状态</button>
+                                </div>
+                            </div>
+
+                            <!-- 密码管理 -->
+                            <div class="operation-section">
+                                <h4>密码管理</h4>
+                                <div class="form-group">
+                                    <label for="newPasswordInput">新密码</label>
+                                    <input type="password" id="newPasswordInput" class="form-control" placeholder="请输入新密码（至少6位）">
+                                    <button id="resetPasswordBtn" class="btn btn-primary">重置密码</button>
+                                </div>
+                            </div>
+
+                            <!-- 危险操作 -->
+                            <div class="operation-section danger-zone">
+                                <h4>危险操作</h4>
+                                <div class="form-group">
+                                    <p class="warning-text">删除用户将永久移除所有相关数据，此操作不可恢复！</p>
+                                    <button id="deleteUserBtn" class="btn btn-danger">删除用户</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/admin-api.js"></script>
+    <script src="js/user-detail.js"></script>
+</body>
+</html>

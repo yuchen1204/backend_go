@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件详情 - 后台管理系统</title>
+    <!-- Material Design fonts & icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="css/admin.css">
+    <link rel="stylesheet" href="css/user-detail.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>后台管理</h2>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="dashboard.html#dashboard"><span class="material-icons">dashboard</span><span>仪表盘</span></a></li>
+                <li><a href="dashboard.html#users"><span class="material-icons">people</span><span>用户管理</span></a></li>
+                <li><a href="dashboard.html#files" class="active"><span class="material-icons">folder_open</span><span>文件管理</span></a></li>
+                <li><a href="dashboard.html#logs"><span class="material-icons">rule</span><span>操作日志</span></a></li>
+                <li><a href="#logout"><span class="material-icons">logout</span><span>退出登录</span></a></li>
+            </ul>
+        </nav>
+
+        <main class="main-content">
+            <header class="header">
+                <div class="breadcrumb">
+                    <a href="dashboard.html#files">文件管理</a>
+                    <span class="separator">/</span>
+                    <span>文件详情</span>
+                </div>
+                <div class="user-info">
+                    <span id="adminUsername">管理员</span>
+                    <button id="logoutBtn" class="btn btn-secondary">退出</button>
+                </div>
+            </header>
+
+            <div class="content">
+                <div class="detail-container">
+                    <div class="detail-header">
+                        <div class="detail-title">
+                            <h1 id="pageTitle">文件详情</h1>
+                            <div class="title-meta">
+                                <span id="fileNameBadge" class="badge badge-soft"></span>
+                                <span id="filePublicBadge" class="status-badge">-</span>
+                            </div>
+                        </div>
+                        <div class="header-actions">
+                            <button id="editFileBtn" class="btn btn-primary">编辑文件</button>
+                            <button id="deleteFileBtn" class="btn btn-danger">删除文件</button>
+                            <button onclick="history.back()" class="btn btn-secondary">返回</button>
+                        </div>
+                    </div>
+
+                    <div class="detail-content">
+                        <div class="info-section">
+                            <h2>基本信息</h2>
+                            <div class="info-grid" id="fileBasicInfo">
+                                <!-- 动态加载文件基本信息 -->
+                            </div>
+                        </div>
+
+                        <div class="info-section">
+                            <h2>存储信息</h2>
+                            <div class="info-grid" id="fileStorageInfo">
+                                <!-- 动态加载存储信息 -->
+                            </div>
+                        </div>
+
+                        <div class="info-section">
+                            <h2>访问信息</h2>
+                            <div class="info-grid" id="fileAccessInfo">
+                                <!-- 动态加载访问信息 -->
+                            </div>
+                        </div>
+
+                        <div class="info-section" id="filePreviewSection" style="display: none;">
+                            <h2>文件预览</h2>
+                            <div class="preview-container" id="filePreview">
+                                <!-- 动态加载文件预览 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 编辑文件模态框 -->
+    <div id="editFileModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="fileDetail.closeEditModal()">&times;</span>
+            <h2>编辑文件信息</h2>
+            <form id="editFileForm">
+                <div class="form-group">
+                    <label for="fileCategory">分类</label>
+                    <input type="text" id="fileCategory" name="category" placeholder="文件分类">
+                </div>
+                <div class="form-group">
+                    <label for="fileDescription">描述</label>
+                    <textarea id="fileDescription" name="description" placeholder="文件描述" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="fileIsPublic" name="is_public">
+                        公开访问
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">保存更改</button>
+                    <button type="button" class="btn btn-secondary" onclick="fileDetail.closeEditModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/admin-api.js"></script>
+    <script src="js/file-detail.js"></script>
+</body>
+</html>

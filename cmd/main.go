@@ -31,10 +31,32 @@ import (
 	"backend/internal/router"
 	"backend/internal/service"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/joho/godotenv"
 )
+
+func startPanelServer() {
+	panelMux := http.NewServeMux()
+	panelDir := "./panel"
+
+	// Check if panel directory exists
+	if _, err := os.Stat(panelDir); os.IsNotExist(err) {
+		log.Printf("管理面板目录 '%s' 不存在，将不启动管理面板服务。", panelDir)
+		return
+	}
+
+	panelFS := http.FileServer(http.Dir(panelDir))
+	panelMux.Handle("/", panelFS)
+
+	port := getEnv("PANEL_PORT", "8081")
+	log.Printf("管理面板服务器启动在端口 %s", port)
+	// 使用 http.ListenAndServe 启动服务
+	if err := http.ListenAndServe(":"+port, panelMux); err != nil {
+		log.Printf("管理面板服务器启动失败: %v", err)
+	}
+}
 
 func main() {
 	// 加载 .env 文件
@@ -62,6 +84,8 @@ func main() {
 	rateLimitRepo := repository.NewRateLimitRepository(rdb)
 	accessTokenBlacklistRepo := repository.NewAccessTokenBlacklistRepository(rdb)
 	deviceRepo := repository.NewDeviceRepository(db)
+	adminLogRepo := repository.NewAdminLogRepository(db)
+	userActionLogRepo := repository.NewUserActionLogRepository(db)
 
 	// 初始化服务层
 	securityCfg := config.GetSecurityConfig()
@@ -73,12 +97,14 @@ func main() {
 	fileStorageSvc := service.NewFileStorageService(fileStorageCfg)
 	userService := service.NewUserService(userRepo, deviceRepo, codeRepo, refreshTokenRepo, rateLimitRepo, accessTokenBlacklistRepo, mailSvc, jwtSvc, securityCfg)
 	fileService := service.NewFileService(fileRepo, fileStorageSvc)
+	adminLogService := service.NewAdminLogService(adminLogRepo)
+	userActionLogService := service.NewUserActionLogService(userActionLogRepo)
 	adminCfg := config.GetAdminConfig()
 
 	// 初始化处理器层
-	userHandler := handler.NewUserHandler(userService)
+	userHandler := handler.NewUserHandler(userService, userActionLogService)
 	fileHandler := handler.NewFileHandler(fileService)
-	adminHandler := handler.NewAdminHandler(*adminCfg, jwtSvc, userService)
+	adminHandler := handler.NewAdminHandler(*adminCfg, jwtSvc, userService, adminLogService, userActionLogService, fileService)
 
 	// 验证文件存储配置
 	if err := fileStorageCfg.ValidateConfigs(); err != nil {
@@ -88,11 +114,14 @@ func main() {
 	// 设置路由
 	r := router.SetupRoutes(userHandler, fileHandler, adminHandler, jwtSvc, accessTokenBlacklistRepo)
 
-	// 启动服务器
+	// 启动管理面板服务器
+	go startPanelServer()
+
+	// 启动API服务器
 	port := getEnv("PORT", "8080")
-	log.Printf("服务器启动在端口 %s", port)
+	log.Printf("API 服务器启动在端口 %s", port)
 	if err := r.Run(":" + port); err != nil {
-		log.Fatalf("服务器启动失败: %v", err)
+		log.Fatalf("API 服务器启动失败: %v", err)
 	}
 }
 

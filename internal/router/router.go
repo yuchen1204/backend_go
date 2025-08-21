@@ -21,6 +21,8 @@ func SetupRoutes(userHandler *handler.UserHandler, fileHandler *handler.FileHand
 	r.Use(CORSMiddleware())
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
+	// 全局流量统计（入口/出口字节）
+	r.Use(middleware.TrafficMiddleware())
 
 	// 静态文件服务（用于本地文件访问）
 	r.Static("/uploads", "./uploads")
@@ -80,13 +82,32 @@ func SetupRoutes(userHandler *handler.UserHandler, fileHandler *handler.FileHand
 					"username": adminUsername,
 				})
 			})
-			
+			// 刷新管理员Token
+			authAdminRoutes.POST("/refresh-token", adminHandler.AdminRefreshToken)
 			// 用户管理相关路由
 			authAdminRoutes.GET("/users", adminHandler.GetUsers)
 			authAdminRoutes.GET("/users/:id", adminHandler.GetUserDetail)
 			authAdminRoutes.PUT("/users/:id/status", adminHandler.UpdateUserStatus)
+			authAdminRoutes.PUT("/users/:id/password", adminHandler.UpdateUserPassword)
 			authAdminRoutes.DELETE("/users/:id", adminHandler.DeleteUser)
 			authAdminRoutes.GET("/stats/users", adminHandler.GetUserStats)
+			// 用户行为日志（按用户）
+			authAdminRoutes.GET("/users/:id/action-logs", adminHandler.ListUserActionLogs)
+
+			// 文件管理相关路由（管理员）
+			authAdminRoutes.GET("/files", adminHandler.AdminListFiles)
+			authAdminRoutes.GET("/files/public", adminHandler.AdminListPublicFiles)
+			authAdminRoutes.GET("/files/:id", adminHandler.AdminGetFile)
+			authAdminRoutes.PUT("/files/:id", adminHandler.AdminUpdateFile)
+			authAdminRoutes.DELETE("/files/:id", adminHandler.AdminDeleteFile)
+			// 存储信息（管理员）
+			authAdminRoutes.GET("/storage/info", adminHandler.AdminGetStorageInfo)
+
+			// 管理员日志相关路由
+			authAdminRoutes.POST("/logs", adminHandler.CreateAdminLog)
+			authAdminRoutes.GET("/logs", adminHandler.ListAdminLogs)
+			// 管理员统计：网络流量
+			authAdminRoutes.GET("/stats/traffic", adminHandler.GetTrafficStats)
 		}
 	}
 

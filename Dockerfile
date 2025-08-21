@@ -33,6 +33,7 @@ WORKDIR /app
 COPY --from=builder /app/main .
 COPY --from=builder /app/docs ./docs
 COPY --from=builder /app/configs ./configs
+COPY --from=builder /app/panel ./panel
 
 # 创建上传目录并设置权限
 RUN mkdir -p uploads/docs uploads/avatars && \

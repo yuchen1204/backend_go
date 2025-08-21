@@ -2,9 +2,11 @@ package handler
 
 import (
 	"backend/internal/config"
+	"backend/internal/middleware"
 	"backend/internal/model"
 	"backend/internal/response"
 	"backend/internal/service"
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -17,15 +19,300 @@ type AdminHandler struct {
 	adminConfig config.AdminConfig
 	jwtService  service.JwtService
 	userService service.UserService
+	adminLogService service.AdminLogService
+	userActionLogService service.UserActionLogService
+	fileService service.FileService
+}
+
+// AdminGetStorageInfo 管理员：获取存储信息（含本地与S3 bucket列表）
+// @Summary 管理员获取存储信息
+// @Tags admin-files
+// @Produce json
+// @Success 200 {object} response.ResponseData{data=model.StorageInfoResponse}
+// @Router /admin/storage/info [get]
+func (h *AdminHandler) AdminGetStorageInfo(c *gin.Context) {
+    info, err := h.fileService.GetStorageInfo(c.Request.Context())
+    if err != nil {
+        response.ErrorResponse(c, http.StatusInternalServerError, "获取存储信息失败", err.Error())
+        return
+    }
+    response.SuccessResponse(c, http.StatusOK, "获取成功", info)
+}
+
+// AdminListFiles 管理员：获取所有文件列表
+// @Summary 管理员获取文件列表
+// @Description 分页筛选所有文件（公开与私有）
+// @Tags admin-files
+// @Produce json
+// @Param category query string false "文件分类"
+// @Param storage_type query string false "存储类型"
+// @Param storage_name query string false "存储名称"
+// @Param is_public query boolean false "是否公开"
+// @Param page query int false "页码" default(1)
+// @Param page_size query int false "每页大小" default(20)
+// @Success 200 {object} response.ResponseData{data=model.FileListResponse}
+// @Failure 500 {object} response.ResponseData
+// @Router /admin/files [get]
+func (h *AdminHandler) AdminListFiles(c *gin.Context) {
+    var req model.FileListRequest
+    if err := c.ShouldBindQuery(&req); err != nil {
+        response.ErrorResponse(c, http.StatusBadRequest, "参数绑定失败", err.Error())
+        return
+    }
+    files, err := h.fileService.GetAllFiles(c.Request.Context(), &req)
+    if err != nil {
+        response.ErrorResponse(c, http.StatusInternalServerError, "获取文件列表失败", err.Error())
+        return
+    }
+    response.SuccessResponse(c, http.StatusOK, "获取成功", files)
+}
+
+// AdminListPublicFiles 管理员：获取公开文件列表
+// @Summary 管理员获取公开文件列表
+// @Description 分页筛选公开文件
+// @Tags admin-files
+// @Produce json
+// @Param category query string false "文件分类"
+// @Param storage_type query string false "存储类型"
+// @Param storage_name query string false "存储名称"
+// @Param page query int false "页码" default(1)
+// @Param page_size query int false "每页大小" default(20)
+// @Success 200 {object} response.ResponseData{data=model.FileListResponse}
+// @Failure 500 {object} response.ResponseData
+// @Router /admin/files/public [get]
+func (h *AdminHandler) AdminListPublicFiles(c *gin.Context) {
+    var req model.FileListRequest
+    if err := c.ShouldBindQuery(&req); err != nil {
+        response.ErrorResponse(c, http.StatusBadRequest, "参数绑定失败", err.Error())
+        return
+    }
+    // 强制只查公开文件
+    t := true
+    req.IsPublic = &t
+    files, err := h.fileService.GetAllFiles(c.Request.Context(), &req)
+    if err != nil {
+        response.ErrorResponse(c, http.StatusInternalServerError, "获取文件列表失败", err.Error())
+        return
+    }
+    response.SuccessResponse(c, http.StatusOK, "获取成功", files)
+}
+
+// AdminGetFile 管理员：获取文件详情
+// @Summary 管理员获取文件详情
+// @Tags admin-files
+// @Produce json
+// @Param id path string true "文件ID"
+// @Success 200 {object} response.ResponseData{data=model.FileResponse}
+// @Failure 404 {object} response.ResponseData
+// @Router /admin/files/{id} [get]
+func (h *AdminHandler) AdminGetFile(c *gin.Context) {
+    idStr := c.Param("id")
+    id, err := uuid.Parse(idStr)
+    if err != nil {
+        response.ErrorResponse(c, http.StatusBadRequest, "无效的文件ID", nil)
+        return
+    }
+    file, err := h.fileService.AdminGetFile(c.Request.Context(), id)
+    if err != nil {
+        if err == response.ErrFileNotFound {
+            response.ErrorResponse(c, http.StatusNotFound, "文件不存在", nil)
+            return
+        }
+        response.ErrorResponse(c, http.StatusInternalServerError, "获取文件失败", err.Error())
+        return
+    }
+    response.SuccessResponse(c, http.StatusOK, "获取成功", file)
+}
+
+// AdminUpdateFile 管理员：更新文件
+// @Summary 管理员更新文件
+// @Tags admin-files
+// @Accept json
+// @Produce json
+// @Param id path string true "文件ID"
+// @Param request body model.FileUpdateRequest true "更新请求"
+// @Success 200 {object} response.ResponseData{data=model.FileResponse}
+// @Failure 400 {object} response.ResponseData
+// @Failure 404 {object} response.ResponseData
+// @Router /admin/files/{id} [put]
+func (h *AdminHandler) AdminUpdateFile(c *gin.Context) {
+    idStr := c.Param("id")
+    id, err := uuid.Parse(idStr)
+    if err != nil {
+        response.ErrorResponse(c, http.StatusBadRequest, "无效的文件ID", nil)
+        return
+    }
+    var req model.FileUpdateRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        response.ErrorResponse(c, http.StatusBadRequest, "参数绑定失败", err.Error())
+        return
+    }
+    file, err := h.fileService.AdminUpdateFile(c.Request.Context(), id, &req)
+    if err != nil {
+        if err == response.ErrFileNotFound {
+            response.ErrorResponse(c, http.StatusNotFound, "文件不存在", nil)
+            return
+        }
+        response.ErrorResponse(c, http.StatusInternalServerError, "更新文件失败", err.Error())
+        return
+    }
+
+    // 管理员操作日志
+    if adminUsername, exists := c.Get("admin_username"); exists {
+        detailsObj := map[string]any{
+            "file_id": id.String(),
+            "note":    "管理员更新文件信息",
+        }
+        detailsBytes, _ := json.Marshal(detailsObj)
+        logEntry := &model.AdminActionLog{
+            AdminUsername: adminUsername.(string),
+            Action:        "update_file",
+            Details:       string(detailsBytes),
+            IPAddress:     c.ClientIP(),
+            UserAgent:     c.GetHeader("User-Agent"),
+        }
+        _ = h.adminLogService.Create(c.Request.Context(), logEntry)
+    }
+
+    response.SuccessResponse(c, http.StatusOK, "更新成功", file)
+}
+
+// AdminDeleteFile 管理员：删除文件
+// @Summary 管理员删除文件
+// @Tags admin-files
+// @Produce json
+// @Param id path string true "文件ID"
+// @Success 200 {object} response.ResponseData
+// @Failure 400 {object} response.ResponseData
+// @Failure 404 {object} response.ResponseData
+// @Router /admin/files/{id} [delete]
+func (h *AdminHandler) AdminDeleteFile(c *gin.Context) {
+    idStr := c.Param("id")
+    id, err := uuid.Parse(idStr)
+    if err != nil {
+        response.ErrorResponse(c, http.StatusBadRequest, "无效的文件ID", nil)
+        return
+    }
+    if err := h.fileService.AdminDeleteFile(c.Request.Context(), id); err != nil {
+        if err == response.ErrFileNotFound {
+            response.ErrorResponse(c, http.StatusNotFound, "文件不存在", nil)
+            return
+        }
+        response.ErrorResponse(c, http.StatusInternalServerError, "删除文件失败", err.Error())
+        return
+    }
+
+    // 管理员操作日志
+    if adminUsername, exists := c.Get("admin_username"); exists {
+        detailsObj := map[string]any{
+            "file_id": id.String(),
+            "note":    "管理员删除文件",
+        }
+        detailsBytes, _ := json.Marshal(detailsObj)
+        logEntry := &model.AdminActionLog{
+            AdminUsername: adminUsername.(string),
+            Action:        "delete_file",
+            Details:       string(detailsBytes),
+            IPAddress:     c.ClientIP(),
+            UserAgent:     c.GetHeader("User-Agent"),
+        }
+        _ = h.adminLogService.Create(c.Request.Context(), logEntry)
+    }
+
+    response.SuccessResponse(c, http.StatusOK, "删除成功", nil)
+}
+
+// UpdateUserPassword 管理员更新用户密码
+func (h *AdminHandler) UpdateUserPassword(c *gin.Context) {
+    userIDStr := c.Param("id")
+    userID, err := uuid.Parse(userIDStr)
+    if err != nil {
+        response.ErrorResponse(c, http.StatusBadRequest, "无效的用户ID格式", err.Error())
+        return
+    }
+
+    var req model.AdminUpdatePasswordRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        response.ErrorResponse(c, http.StatusBadRequest, "请求参数错误", err.Error())
+        return
+    }
+
+    if err := h.userService.AdminUpdateUserPassword(c.Request.Context(), userID, req.NewPassword); err != nil {
+        response.ErrorResponse(c, http.StatusInternalServerError, "更新用户密码失败", err.Error())
+        return
+    }
+
+    // 自动记录管理员操作日志：重置用户密码
+    if adminUsername, exists := c.Get("admin_username"); exists {
+        detailsObj := map[string]any{
+            "target_user_id": userID.String(),
+            "note":            "管理员重置用户密码",
+        }
+        detailsBytes, _ := json.Marshal(detailsObj)
+        logEntry := &model.AdminActionLog{
+            AdminUsername: adminUsername.(string),
+            Action:        "reset_user_password",
+            TargetUserID:  &userID,
+            Details:       string(detailsBytes),
+            IPAddress:     c.ClientIP(),
+            UserAgent:     c.GetHeader("User-Agent"),
+        }
+        _ = h.adminLogService.Create(c.Request.Context(), logEntry)
+    }
+
+    response.SuccessResponse(c, http.StatusOK, "用户密码更新成功", nil)
+}
+
+// AdminRefreshToken 刷新管理员Token
+// @Summary 刷新管理员Token
+// @Tags admin-auth
+// @Produce json
+// @Success 200 {object} response.ResponseData{data=map[string]string}
+// @Router /admin/refresh-token [post]
+func (h *AdminHandler) AdminRefreshToken(c *gin.Context) {
+    adminUsername, exists := c.Get("admin_username")
+    if !exists {
+        response.ErrorResponse(c, http.StatusUnauthorized, "未授权", nil)
+        return
+    }
+
+    token, err := h.jwtService.GenerateAdminToken(adminUsername.(string))
+    if err != nil {
+        response.ErrorResponse(c, http.StatusInternalServerError, "生成Token失败", err.Error())
+        return
+    }
+
+    response.SuccessResponse(c, http.StatusOK, "刷新成功", gin.H{"token": token})
 }
 
 // NewAdminHandler 创建管理员处理器实例
-func NewAdminHandler(adminConfig config.AdminConfig, jwtService service.JwtService, userService service.UserService) *AdminHandler {
+func NewAdminHandler(adminConfig config.AdminConfig, jwtService service.JwtService, userService service.UserService, adminLogService service.AdminLogService, userActionLogService service.UserActionLogService, fileService service.FileService) *AdminHandler {
 	return &AdminHandler{
 		adminConfig: adminConfig,
 		jwtService:  jwtService,
 		userService: userService,
+		adminLogService: adminLogService,
+		userActionLogService: userActionLogService,
+		fileService: fileService,
 	}
+}
+
+// GetTrafficStats 管理员获取网络流量统计（占位实现）
+// @Summary 管理员获取网络流量统计
+// @Tags admin-stats
+// @Produce json
+// @Success 200 {object} response.ResponseData{data=map[string]any}
+// @Router /admin/stats/traffic [get]
+func (h *AdminHandler) GetTrafficStats(c *gin.Context) {
+    inBytes := middleware.GetTrafficInBytes()
+    outBytes := middleware.GetTrafficOutBytes()
+    data := map[string]any{
+        "in_bytes":  inBytes,
+        "out_bytes": outBytes,
+        // 当前为进程自启动以来的累计值，后续可扩展时间窗口参数
+        "window":    "since_start",
+    }
+    response.SuccessResponse(c, http.StatusOK, "获取成功", data)
 }
 
 // Login 管理员登录
@@ -112,6 +399,24 @@ func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 		return
 	}
 
+    // 自动记录管理员操作日志：更新用户状态
+    if adminUsername, exists := c.Get("admin_username"); exists {
+        detailsObj := map[string]any{
+            "target_user_id": userID.String(),
+            "new_status":     req.Status,
+        }
+        detailsBytes, _ := json.Marshal(detailsObj)
+        logEntry := &model.AdminActionLog{
+            AdminUsername: adminUsername.(string),
+            Action:        "update_user_status",
+            TargetUserID:  &userID,
+            Details:       string(detailsBytes),
+            IPAddress:     c.ClientIP(),
+            UserAgent:     c.GetHeader("User-Agent"),
+        }
+        _ = h.adminLogService.Create(c.Request.Context(), logEntry)
+    }
+
 	response.SuccessResponse(c, http.StatusOK, "用户状态更新成功", nil)
 }
 
@@ -130,6 +435,24 @@ func (h *AdminHandler) DeleteUser(c *gin.Context) {
 		return
 	}
 
+    // 自动记录管理员操作日志：删除用户
+    if adminUsername, exists := c.Get("admin_username"); exists {
+        detailsObj := map[string]any{
+            "target_user_id": userID.String(),
+            "note":            "管理员删除用户",
+        }
+        detailsBytes, _ := json.Marshal(detailsObj)
+        logEntry := &model.AdminActionLog{
+            AdminUsername: adminUsername.(string),
+            Action:        "delete_user",
+            TargetUserID:  &userID,
+            Details:       string(detailsBytes),
+            IPAddress:     c.ClientIP(),
+            UserAgent:     c.GetHeader("User-Agent"),
+        }
+        _ = h.adminLogService.Create(c.Request.Context(), logEntry)
+    }
+
 	response.SuccessResponse(c, http.StatusOK, "用户删除成功", nil)
 }
 
@@ -142,4 +465,80 @@ func (h *AdminHandler) GetUserStats(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, http.StatusOK, "获取用户统计成功", stats)
+}
+
+// CreateAdminLog 创建管理员行为日志
+func (h *AdminHandler) CreateAdminLog(c *gin.Context) {
+    var req model.AdminLogCreateRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        response.ErrorResponse(c, http.StatusBadRequest, "请求参数错误", err.Error())
+        return
+    }
+
+    adminUsername, _ := c.Get("admin_username")
+    ip := c.ClientIP()
+    ua := c.GetHeader("User-Agent")
+
+    logEntry := &model.AdminActionLog{
+        AdminUsername: adminUsername.(string),
+        Action:        req.Action,
+        TargetUserID:  req.TargetUserID,
+        Details:       req.Details,
+        IPAddress:     ip,
+        UserAgent:     ua,
+    }
+
+    if err := h.adminLogService.Create(c.Request.Context(), logEntry); err != nil {
+        response.ErrorResponse(c, http.StatusInternalServerError, "创建日志失败", err.Error())
+        return
+    }
+
+    response.SuccessResponse(c, http.StatusOK, "日志创建成功", gin.H{"id": logEntry.ID})
+}
+
+// ListAdminLogs 查询管理员行为日志
+func (h *AdminHandler) ListAdminLogs(c *gin.Context) {
+    page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+    limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+    adminUsername := c.Query("admin_username")
+    action := c.Query("action")
+
+    logs, total, err := h.adminLogService.List(c.Request.Context(), page, limit, adminUsername, action)
+    if err != nil {
+        response.ErrorResponse(c, http.StatusInternalServerError, "获取日志失败", err.Error())
+        return
+    }
+
+    response.SuccessResponse(c, http.StatusOK, "获取日志成功", gin.H{
+        "logs": logs,
+        "total": total,
+        "page": page,
+        "limit": limit,
+    })
+}
+
+// ListUserActionLogs 分页查询某用户的行为日志
+func (h *AdminHandler) ListUserActionLogs(c *gin.Context) {
+    userIDStr := c.Param("id")
+    userID, err := uuid.Parse(userIDStr)
+    if err != nil {
+        response.ErrorResponse(c, http.StatusBadRequest, "无效的用户ID格式", err.Error())
+        return
+    }
+
+    page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+    limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+    logs, total, err := h.userActionLogService.ListByUser(c.Request.Context(), userID, page, limit)
+    if err != nil {
+        response.ErrorResponse(c, http.StatusInternalServerError, "获取用户行为日志失败", err.Error())
+        return
+    }
+
+    response.SuccessResponse(c, http.StatusOK, "获取用户行为日志成功", gin.H{
+        "logs": logs,
+        "total": total,
+        "page": page,
+        "limit": limit,
+    })
 }
