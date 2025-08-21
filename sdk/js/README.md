@@ -10,6 +10,7 @@
 
 - 🔐 **完整认证支持**：双Token机制 + 陌生设备验证
 - 📁 **文件管理**：上传、下载、分类管理
+- 💬 **实时聊天**：内置 WebSocket 客户端（`/api/v1/ws/chat`）
 - 🌐 **跨平台**：支持浏览器与 Node.js (>=18)
 - 🛡️ **类型安全**：基于 Swagger 自动生成
 - 🔄 **自动重试**：Token刷新和错误处理
@@ -86,6 +87,22 @@ const files = await client.files.listPublicFiles({ page: 1, page_size: 20 });
 
 // 上传单个文件（浏览器 File 或 Blob；Node.js 18+ 支持 Blob）
 const fdResult = await client.files.upload({ file: someFile, category: 'docs', is_public: true });
+
+// 连接 WebSocket（聊天）
+const { socket, send, close } = client.chat.connect({
+  // 可省略，将自动使用 client 的 accessToken
+  token: client.getTokens().accessToken,
+  onOpen: () => console.log('WS opened'),
+  onClose: () => console.log('WS closed'),
+  onError: (e) => console.error('WS error', e),
+  onMessage: (msg) => console.log('WS message', msg),
+});
+
+// 发送消息（两种其一必填）：
+// 1) 指定好友 user_id（SDK 会在服务端校验好友关系并创建/取回会话）
+send({ to_user_id: 'TARGET-USER-UUID', content: 'hello' });
+// 2) 指定会话 room_id（双方成员可用）
+// send({ room_id: 'ROOM-UUID', content: 'hi' });
 ```
 
 ## 📚 API 概览
@@ -127,6 +144,34 @@ const fdResult = await client.files.upload({ file: someFile, category: 'docs', i
 | `getStorages()` | - | 获取存储配置信息 |
 | `upload()` | `{ file, storage_name?, ... }` | 上传单个文件 |
 | `uploadMultiple()` | `{ files, storage_name?, ... }` | 批量上传文件 |
+
+### 👥 好友模块 (friends)
+
+| 方法 | 参数 | 说明 |
+|------|------|------|
+| `createRequest()` | `{ receiver_id, note? }` | 发送好友请求 |
+| `acceptRequest(id)` | `id` | 接受好友请求 |
+| `rejectRequest(id)` | `id` | 拒绝好友请求 |
+| `cancelRequest(id)` | `id` | 取消自己发出的请求 |
+| `listFriends()` | `{ page?, limit?, search? }` | 好友列表 |
+| `listIncoming()` | `{ page?, limit?, status? }` | 收到的请求 |
+| `listOutgoing()` | `{ page?, limit?, status? }` | 发出的请求 |
+| `updateRemark(friend_id, remark)` | `friend_id, remark` | 更新好友备注 |
+| `deleteFriend(friend_id)` | `friend_id` | 删除好友 |
+| `block(user_id)` | `user_id` | 拉黑用户 |
+| `unblock(user_id)` | `user_id` | 取消拉黑 |
+| `listBlocks()` | `{ page?, limit? }` | 黑名单列表 |
+
+### 💬 聊天模块 (chat / WebSocket)
+
+- 端点：`GET /api/v1/ws/chat`（鉴权支持 `Authorization: Bearer <token>` 或 `?token=<token>`）
+- SDK 方法：`client.chat.connect({ token?, onOpen?, onClose?, onError?, onMessage? })`
+- 返回：`{ socket, send, close }`
+- `send(payload)` 参数：
+  - `content`：消息内容，必填
+  - `to_user_id`：目标用户 UUID（与对方为好友时使用）
+  - `room_id`：会话 UUID（双方成员都可用）
+  - 二选一：`room_id` 或 `to_user_id` 必填其一
 
 ### 📱 设备工具函数
 

@@ -28,6 +28,61 @@ class AdminAPIService {
         }
     }
 
+    // 查询用户好友功能封禁状态（管理员）
+    async getFriendBan(userId) {
+        try {
+            const response = await fetch(`${this.baseURL}/admin/users/${userId}/friend-ban`, {
+                method: 'GET',
+                headers: this.getAuthHeaders()
+            });
+            const data = await response.json();
+            if (response.ok) {
+                return { success: true, data: data.data };
+            }
+            return { success: false, message: data.message || '查询好友封禁状态失败' };
+        } catch (e) {
+            console.error('查询好友封禁状态错误:', e);
+            return { success: false, message: '网络连接失败' };
+        }
+    }
+
+    // 设置用户好友功能封禁（管理员）
+    async setFriendBan(userId, { reason, banned_until }) {
+        try {
+            const response = await fetch(`${this.baseURL}/admin/users/${userId}/friend-ban`, {
+                method: 'POST',
+                headers: this.getAuthHeaders(),
+                body: JSON.stringify({ reason, banned_until })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                return { success: true, data: data.data };
+            }
+            return { success: false, message: data.message || '设置好友封禁失败' };
+        } catch (e) {
+            console.error('设置好友封禁错误:', e);
+            return { success: false, message: '网络连接失败' };
+        }
+    }
+
+    // 解除用户好友功能封禁（管理员）
+    async removeFriendBan(userId) {
+        try {
+            const response = await fetch(`${this.baseURL}/admin/users/${userId}/friend-ban`, {
+                method: 'DELETE',
+                headers: this.getAuthHeaders()
+            });
+            const data = await response.json();
+            if (response.ok) {
+                return { success: true, data: data.data };
+            }
+            return { success: false, message: data.message || '解除好友封禁失败' };
+        } catch (e) {
+            console.error('解除好友封禁错误:', e);
+            return { success: false, message: '网络连接失败' };
+        }
+    }
+
     // 刷新管理员Token
     async refreshAdminToken() {
         try {

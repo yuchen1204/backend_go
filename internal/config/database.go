@@ -66,6 +66,11 @@ func AutoMigrate(db *gorm.DB) error {
 		&model.AdminActionLog{},
 		&model.UserActionLog{},
 		// 在此处添加其他模型
+		&model.FriendRequest{},
+		&model.Friendship{},
+		&model.BlockList{},
+		&model.FriendBan{},
+		&model.ChatRoom{},
 	)
 }
 

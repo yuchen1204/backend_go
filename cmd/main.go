@@ -12,7 +12,7 @@
 //	@license.name	MIT
 //	@license.url	https://opensource.org/licenses/MIT
 //
-//	@host		localhost:1234
+//	@host		localhost:8080
 //	@BasePath	/api/v1
 //
 //	@securityDefinitions.apikey	ApiKeyAuth
@@ -86,6 +86,12 @@ func main() {
 	deviceRepo := repository.NewDeviceRepository(db)
 	adminLogRepo := repository.NewAdminLogRepository(db)
 	userActionLogRepo := repository.NewUserActionLogRepository(db)
+	// 好友系统仓储
+	friendReqRepo := repository.NewFriendRequestRepository(db)
+	friendshipRepo := repository.NewFriendshipRepository(db)
+	blockListRepo := repository.NewBlockListRepository(db)
+	friendBanRepo := repository.NewFriendBanRepository(db)
+	chatRoomRepo := repository.NewChatRoomRepository(db)
 
 	// 初始化服务层
 	securityCfg := config.GetSecurityConfig()
@@ -100,11 +106,15 @@ func main() {
 	adminLogService := service.NewAdminLogService(adminLogRepo)
 	userActionLogService := service.NewUserActionLogService(userActionLogRepo)
 	adminCfg := config.GetAdminConfig()
+	// 好友系统服务：每日请求上限100，好友上限500
+	friendService := service.NewFriendService(friendReqRepo, friendshipRepo, blockListRepo, friendBanRepo, userRepo, rateLimitRepo, mailSvc, userActionLogService, 100, 500, chatRoomRepo)
 
 	// 初始化处理器层
 	userHandler := handler.NewUserHandler(userService, userActionLogService)
 	fileHandler := handler.NewFileHandler(fileService)
-	adminHandler := handler.NewAdminHandler(*adminCfg, jwtSvc, userService, adminLogService, userActionLogService, fileService)
+	adminHandler := handler.NewAdminHandler(*adminCfg, jwtSvc, userService, adminLogService, userActionLogService, fileService, friendBanRepo)
+	friendHandler := handler.NewFriendHandler(friendService)
+	wsHandler := handler.NewWSHandler(jwtSvc, friendshipRepo, chatRoomRepo)
 
 	// 验证文件存储配置
 	if err := fileStorageCfg.ValidateConfigs(); err != nil {
@@ -112,7 +122,7 @@ func main() {
 	}
 
 	// 设置路由
-	r := router.SetupRoutes(userHandler, fileHandler, adminHandler, jwtSvc, accessTokenBlacklistRepo)
+	r := router.SetupRoutes(userHandler, fileHandler, adminHandler, friendHandler, wsHandler, jwtSvc, accessTokenBlacklistRepo)
 
 	// 启动管理面板服务器
 	go startPanelServer()

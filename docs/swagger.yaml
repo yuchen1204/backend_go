@@ -12,6 +12,36 @@ definitions:
     - email
     - verification_code
     type: object
+  model.AdminLogCreateRequest:
+    properties:
+      action:
+        type: string
+      details:
+        type: string
+      target_user_id:
+        type: string
+    required:
+    - action
+    type: object
+  model.AdminSetFriendBanRequest:
+    properties:
+      banned_until:
+        type: string
+      reason:
+        type: string
+    required:
+    - banned_until
+    - reason
+    type: object
+  model.AdminUpdatePasswordRequest:
+    properties:
+      new_password:
+        maxLength: 100
+        minLength: 6
+        type: string
+    required:
+    - new_password
+    type: object
   model.FileListResponse:
     properties:
       files:
@@ -293,6 +323,17 @@ definitions:
       username:
         type: string
     type: object
+  model.UserStatusUpdateRequest:
+    properties:
+      status:
+        enum:
+        - active
+        - inactive
+        - banned
+        type: string
+    required:
+    - status
+    type: object
   response.ResponseData:
     properties:
       code:
@@ -505,6 +546,69 @@ paths:
       summary: 管理员获取公开文件列表
       tags:
       - admin-files
+  /admin/logs:
+    get:
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: limit
+        type: integer
+      - description: 管理员用户名
+        in: query
+        name: admin_username
+        type: string
+      - description: 操作类型
+        in: query
+        name: action
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+      summary: 查询管理员行为日志
+      tags:
+      - admin-logs
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 日志创建请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.AdminLogCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+      summary: 创建管理员行为日志
+      tags:
+      - admin-logs
   /admin/refresh-token:
     post:
       produces:
@@ -542,6 +646,24 @@ paths:
       summary: 管理员获取网络流量统计
       tags:
       - admin-stats
+  /admin/stats/users:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+      summary: 管理员获取用户统计信息
+      tags:
+      - admin-stats
   /admin/storage/info:
     get:
       produces:
@@ -559,6 +681,243 @@ paths:
       summary: 管理员获取存储信息
       tags:
       - admin-files
+  /admin/users:
+    get:
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: limit
+        type: integer
+      - description: 搜索关键词
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+      summary: 管理员获取用户列表
+      tags:
+      - admin-users
+  /admin/users/{id}:
+    delete:
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 管理员删除用户
+      tags:
+      - admin-users
+    get:
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.UserResponse'
+              type: object
+      summary: 管理员获取用户详情
+      tags:
+      - admin-users
+  /admin/users/{id}/action-logs:
+    get:
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+      summary: 管理员查询用户行为日志
+      tags:
+      - admin-users
+  /admin/users/{id}/friend-ban:
+    delete:
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 管理员解除用户好友功能封禁
+      tags:
+      - admin-users
+    get:
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 管理员查询用户好友功能封禁状态
+      tags:
+      - admin-users
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 封禁请求体
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.AdminSetFriendBanRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 管理员设置用户好友功能封禁
+      tags:
+      - admin-users
+  /admin/users/{id}/password:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 密码更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.AdminUpdatePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 管理员更新用户密码
+      tags:
+      - admin-users
+  /admin/users/{id}/status:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 状态更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.UserStatusUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 管理员更新用户状态
+      tags:
+      - admin-users
   /files/{id}:
     delete:
       description: 删除指定的文件（仅文件所有者可操作）
@@ -927,6 +1286,165 @@ paths:
       summary: 上传多个文件
       tags:
       - files
+  /friends/{friend_id}:
+    delete:
+      parameters:
+      - description: 好友ID
+        in: path
+        name: friend_id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - ApiKeyAuth: []
+      summary: 删除好友
+      tags:
+      - 好友
+  /friends/blocks:
+    get:
+      produces:
+      - application/json
+      responses: {}
+      security:
+      - ApiKeyAuth: []
+      summary: 黑名单列表
+      tags:
+      - 好友
+  /friends/blocks/{user_id}:
+    delete:
+      parameters:
+      - description: 用户ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - ApiKeyAuth: []
+      summary: 取消拉黑
+      tags:
+      - 好友
+    post:
+      parameters:
+      - description: 用户ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - ApiKeyAuth: []
+      summary: 拉黑用户
+      tags:
+      - 好友
+  /friends/list:
+    get:
+      produces:
+      - application/json
+      responses: {}
+      security:
+      - ApiKeyAuth: []
+      summary: 获取好友列表
+      tags:
+      - 好友
+  /friends/remarks/{friend_id}:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: 好友ID
+        in: path
+        name: friend_id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - ApiKeyAuth: []
+      summary: 更新好友备注
+      tags:
+      - 好友
+  /friends/requests:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses: {}
+      security:
+      - ApiKeyAuth: []
+      summary: 发起好友请求
+      tags:
+      - 好友
+  /friends/requests/{id}:
+    delete:
+      parameters:
+      - description: 请求ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - ApiKeyAuth: []
+      summary: 撤回好友请求
+      tags:
+      - 好友
+  /friends/requests/{id}/accept:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 请求ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses: {}
+      security:
+      - ApiKeyAuth: []
+      summary: 接受好友请求
+      tags:
+      - 好友
+  /friends/requests/{id}/reject:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 请求ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses: {}
+      security:
+      - ApiKeyAuth: []
+      summary: 拒绝好友请求
+      tags:
+      - 好友
+  /friends/requests/incoming:
+    get:
+      produces:
+      - application/json
+      responses: {}
+      security:
+      - ApiKeyAuth: []
+      summary: 入站好友请求列表
+      tags:
+      - 好友
+  /friends/requests/outgoing:
+    get:
+      produces:
+      - application/json
+      responses: {}
+      security:
+      - ApiKeyAuth: []
+      summary: 出站好友请求列表
+      tags:
+      - 好友
   /users/{id}:
     get:
       consumes:
@@ -1396,6 +1914,25 @@ paths:
       summary: 根据用户名获取用户信息
       tags:
       - 用户管理
+  /ws/chat:
+    get:
+      description: '通过 WebSocket 建立一对一聊天连接。鉴权方式：优先读取 HTTP Header `Authorization: Bearer
+        <access_token>`；浏览器无法自定义 Header 时可使用 query 参数 `?token=<access_token>`。'
+      parameters:
+      - description: Access Token（可选，浏览器场景使用）
+        in: query
+        name: token
+        type: string
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+      summary: WebSocket 聊天连接
+      tags:
+      - chat
 securityDefinitions:
   ApiKeyAuth:
     description: Description for what is this security definition being used

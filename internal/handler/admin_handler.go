@@ -4,11 +4,13 @@ import (
 	"backend/internal/config"
 	"backend/internal/middleware"
 	"backend/internal/model"
+	"backend/internal/repository"
 	"backend/internal/response"
 	"backend/internal/service"
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -22,6 +24,126 @@ type AdminHandler struct {
 	adminLogService service.AdminLogService
 	userActionLogService service.UserActionLogService
 	fileService service.FileService
+	friendBanRepo repository.FriendBanRepository
+}
+
+// AdminSetFriendBan 管理员：设置用户好友功能封禁
+// @Summary 管理员设置用户好友功能封禁
+// @Tags admin-users
+// @Accept json
+// @Produce json
+// @Param id path string true "用户ID"
+// @Param request body model.AdminSetFriendBanRequest true "封禁请求体"
+// @Success 200 {object} response.ResponseData
+// @Failure 400 {object} response.ResponseData
+// @Router /admin/users/{id}/friend-ban [post]
+func (h *AdminHandler) AdminSetFriendBan(c *gin.Context) {
+    userIDStr := c.Param("id")
+    userID, err := uuid.Parse(userIDStr)
+    if err != nil {
+        response.ErrorResponse(c, http.StatusBadRequest, "无效的用户ID格式", err.Error())
+        return
+    }
+    var req model.AdminSetFriendBanRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        response.ErrorResponse(c, http.StatusBadRequest, "请求参数错误", err.Error())
+        return
+    }
+    if req.BannedUntil.Before(time.Now()) {
+        response.ErrorResponse(c, http.StatusBadRequest, "封禁截止时间必须晚于当前时间", nil)
+        return
+    }
+    if err := h.friendBanRepo.SetBan(userID, req.Reason, req.BannedUntil); err != nil {
+        response.ErrorResponse(c, http.StatusInternalServerError, "设置封禁失败", err.Error())
+        return
+    }
+
+    // 管理员操作日志
+    if adminUsername, exists := c.Get("admin_username"); exists {
+        detailsObj := map[string]any{
+            "target_user_id": userID.String(),
+            "reason": req.Reason,
+            "banned_until": req.BannedUntil,
+        }
+        detailsBytes, _ := json.Marshal(detailsObj)
+        logEntry := &model.AdminActionLog{
+            AdminUsername: adminUsername.(string),
+            Action:        "set_friend_ban",
+            TargetUserID:  &userID,
+            Details:       string(detailsBytes),
+            IPAddress:     c.ClientIP(),
+            UserAgent:     c.GetHeader("User-Agent"),
+        }
+        _ = h.adminLogService.Create(c.Request.Context(), logEntry)
+    }
+    response.SuccessResponse(c, http.StatusOK, "设置封禁成功", nil)
+}
+
+// AdminRemoveFriendBan 管理员：解除用户好友功能封禁
+// @Summary 管理员解除用户好友功能封禁
+// @Tags admin-users
+// @Produce json
+// @Param id path string true "用户ID"
+// @Success 200 {object} response.ResponseData
+// @Failure 400 {object} response.ResponseData
+// @Router /admin/users/{id}/friend-ban [delete]
+func (h *AdminHandler) AdminRemoveFriendBan(c *gin.Context) {
+    userIDStr := c.Param("id")
+    userID, err := uuid.Parse(userIDStr)
+    if err != nil {
+        response.ErrorResponse(c, http.StatusBadRequest, "无效的用户ID格式", err.Error())
+        return
+    }
+    if err := h.friendBanRepo.RemoveBan(userID); err != nil {
+        response.ErrorResponse(c, http.StatusInternalServerError, "解除封禁失败", err.Error())
+        return
+    }
+    if adminUsername, exists := c.Get("admin_username"); exists {
+        detailsObj := map[string]any{
+            "target_user_id": userID.String(),
+        }
+        detailsBytes, _ := json.Marshal(detailsObj)
+        logEntry := &model.AdminActionLog{
+            AdminUsername: adminUsername.(string),
+            Action:        "remove_friend_ban",
+            TargetUserID:  &userID,
+            Details:       string(detailsBytes),
+            IPAddress:     c.ClientIP(),
+            UserAgent:     c.GetHeader("User-Agent"),
+        }
+        _ = h.adminLogService.Create(c.Request.Context(), logEntry)
+    }
+    response.SuccessResponse(c, http.StatusOK, "解除封禁成功", nil)
+}
+
+// AdminGetFriendBan 管理员：查询用户好友功能封禁状态
+// @Summary 管理员查询用户好友功能封禁状态
+// @Tags admin-users
+// @Produce json
+// @Param id path string true "用户ID"
+// @Success 200 {object} response.ResponseData{data=map[string]any}
+// @Failure 400 {object} response.ResponseData
+// @Router /admin/users/{id}/friend-ban [get]
+func (h *AdminHandler) AdminGetFriendBan(c *gin.Context) {
+    userIDStr := c.Param("id")
+    userID, err := uuid.Parse(userIDStr)
+    if err != nil {
+        response.ErrorResponse(c, http.StatusBadRequest, "无效的用户ID格式", err.Error())
+        return
+    }
+    ban, err := h.friendBanRepo.GetActiveBan(userID, time.Now())
+    if err != nil {
+        // 未找到或已过期：视为未封禁
+        response.SuccessResponse(c, http.StatusOK, "查询成功", gin.H{
+            "active": false,
+        })
+        return
+    }
+    response.SuccessResponse(c, http.StatusOK, "查询成功", gin.H{
+        "active": true,
+        "reason": ban.Reason,
+        "banned_until": ban.BannedUntil,
+    })
 }
 
 // AdminGetStorageInfo 管理员：获取存储信息（含本地与S3 bucket列表）
@@ -228,7 +350,7 @@ func (h *AdminHandler) AdminDeleteFile(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "用户ID"
-// @Param request body model.UserPasswordUpdateRequest true "密码更新请求"
+// @Param request body model.AdminUpdatePasswordRequest true "密码更新请求"
 // @Success 200 {object} response.ResponseData
 // @Router /admin/users/{id}/password [put]
 func (h *AdminHandler) UpdateUserPassword(c *gin.Context) {
@@ -294,15 +416,16 @@ func (h *AdminHandler) AdminRefreshToken(c *gin.Context) {
 }
 
 // NewAdminHandler 创建管理员处理器实例
-func NewAdminHandler(adminConfig config.AdminConfig, jwtService service.JwtService, userService service.UserService, adminLogService service.AdminLogService, userActionLogService service.UserActionLogService, fileService service.FileService) *AdminHandler {
-	return &AdminHandler{
-		adminConfig: adminConfig,
-		jwtService:  jwtService,
-		userService: userService,
-		adminLogService: adminLogService,
-		userActionLogService: userActionLogService,
-		fileService: fileService,
-	}
+func NewAdminHandler(adminConfig config.AdminConfig, jwtService service.JwtService, userService service.UserService, adminLogService service.AdminLogService, userActionLogService service.UserActionLogService, fileService service.FileService, friendBanRepo repository.FriendBanRepository) *AdminHandler {
+    return &AdminHandler{
+        adminConfig: adminConfig,
+        jwtService:  jwtService,
+        userService: userService,
+        adminLogService: adminLogService,
+        userActionLogService: userActionLogService,
+        fileService: fileService,
+        friendBanRepo: friendBanRepo,
+    }
 }
 
 // GetTrafficStats 管理员获取网络流量统计（占位实现）
@@ -415,9 +538,7 @@ func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 		return
 	}
 
-	var req struct {
-		Status string `json:"status" binding:"required,oneof=active inactive banned"`
-	}
+	var req model.UserStatusUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ErrorResponse(c, http.StatusBadRequest, "请求参数错误", err.Error())
 		return

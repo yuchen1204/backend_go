@@ -11,6 +11,54 @@ function now() {
   return d.toLocaleString();
 }
 
+function bindChatSection() {
+  let conn = null;
+  const setConnected = (on) => {
+    const statusEl = $('chatStatus');
+    if (statusEl) statusEl.textContent = on ? '已连接' : '未连接';
+  };
+
+  $('chatConnect').addEventListener('click', () => {
+    try {
+      guardClient();
+      if (conn) { log('聊天已连接'); return; }
+      const tokens = client.getTokens();
+      conn = client.chat.connect({
+        token: tokens.accessToken,
+        onOpen: () => { setConnected(true); log('WS open'); },
+        onClose: () => { setConnected(false); log('WS close'); conn = null; },
+        onError: (e) => { logError('WS error', e); },
+        onMessage: (data) => {
+          log('WS message', data);
+          // 自动填充 room_id 便于后续复用房间
+          if (data && data.room_id && !$('chatRoomId').value) {
+            $('chatRoomId').value = data.room_id;
+            log('已填充 room_id', { room_id: data.room_id });
+          }
+        },
+      });
+    } catch (err) { logError('WS connect', err); }
+  });
+
+  $('chatDisconnect').addEventListener('click', () => {
+    try {
+      if (conn) { conn.close(); conn = null; setConnected(false); log('WS closed by client'); }
+      else { log('WS 未连接'); }
+    } catch (err) { logError('WS disconnect', err); }
+  });
+
+  $('chatSend').addEventListener('click', () => {
+    try {
+      if (!conn) return log('请先连接 WS');
+      const to_user_id = $('chatToUserId').value || undefined;
+      const room_id = $('chatRoomId').value || undefined;
+      const content = $('chatMessage').value;
+      conn.send({ to_user_id, room_id, content });
+      log('WS send', { to_user_id, room_id, content });
+    } catch (err) { logError('WS send', err); }
+  });
+}
+
 function log(title, payload) {
   const out = $out();
   const line = `\n[${now()}] ${title}\n` + (payload ? JSON.stringify(payload, null, 2) : '');
@@ -494,6 +542,133 @@ function bindFilesSection() {
   });
 }
 
+function bindFriendsSection() {
+  // Create friend request
+  $('createFriendRequest').addEventListener('click', async () => {
+    try {
+      guardClient();
+      const receiver_id = $('createFriendRequestReceiverId').value;
+      const note = $('createFriendRequestNote').value;
+      const data = await client.friends.createRequest({ receiver_id, note: note || undefined });
+      log('POST /friends/requests', data);
+      if (data && data.id) $('friendRequestId').value = data.id;
+    } catch (err) { logError('POST /friends/requests', err); }
+  });
+
+  // Accept
+  $('acceptFriendRequest').addEventListener('click', async () => {
+    try {
+      guardClient();
+      const id = $('friendRequestId').value;
+      const data = await client.friends.acceptRequest(id);
+      log('POST /friends/requests/{id}/accept', data);
+    } catch (err) { logError('POST /friends/requests/{id}/accept', err); }
+  });
+
+  // Reject
+  $('rejectFriendRequest').addEventListener('click', async () => {
+    try {
+      guardClient();
+      const id = $('friendRequestId').value;
+      const data = await client.friends.rejectRequest(id);
+      log('POST /friends/requests/{id}/reject', data);
+    } catch (err) { logError('POST /friends/requests/{id}/reject', err); }
+  });
+
+  // Cancel
+  $('cancelFriendRequest').addEventListener('click', async () => {
+    try {
+      guardClient();
+      const id = $('friendRequestId').value;
+      const data = await client.friends.cancelRequest(id);
+      log('DELETE /friends/requests/{id}', data);
+    } catch (err) { logError('DELETE /friends/requests/{id}', err); }
+  });
+
+  // Lists
+  $('listFriends').addEventListener('click', async () => {
+    try {
+      guardClient();
+      const page = Number($('friendPage').value || '1');
+      const limit = Number($('friendLimit').value || '20');
+      const search = $('friendSearch').value || undefined;
+      const data = await client.friends.listFriends({ page, limit, search });
+      log('GET /friends/list', data);
+    } catch (err) { logError('GET /friends/list', err); }
+  });
+
+  $('listIncoming').addEventListener('click', async () => {
+    try {
+      guardClient();
+      const page = Number($('friendPage').value || '1');
+      const limit = Number($('friendLimit').value || '20');
+      const status = $('incomingStatus').value || undefined;
+      const data = await client.friends.listIncoming({ page, limit, status });
+      log('GET /friends/requests/incoming', data);
+    } catch (err) { logError('GET /friends/requests/incoming', err); }
+  });
+
+  $('listOutgoing').addEventListener('click', async () => {
+    try {
+      guardClient();
+      const page = Number($('friendPage').value || '1');
+      const limit = Number($('friendLimit').value || '20');
+      const status = $('outgoingStatus').value || undefined;
+      const data = await client.friends.listOutgoing({ page, limit, status });
+      log('GET /friends/requests/outgoing', data);
+    } catch (err) { logError('GET /friends/requests/outgoing', err); }
+  });
+
+  // Friend ops
+  $('updateRemarkFriend').addEventListener('click', async () => {
+    try {
+      guardClient();
+      const friend_id = $('friendFriendId').value;
+      const remark = $('friendRemark').value;
+      const data = await client.friends.updateRemark(friend_id, remark);
+      log('PATCH /friends/remarks/{friend_id}', data);
+    } catch (err) { logError('PATCH /friends/remarks/{friend_id}', err); }
+  });
+
+  $('deleteFriend').addEventListener('click', async () => {
+    try {
+      guardClient();
+      const friend_id = $('friendFriendId').value;
+      const data = await client.friends.deleteFriend(friend_id);
+      log('DELETE /friends/{friend_id}', data);
+    } catch (err) { logError('DELETE /friends/{friend_id}', err); }
+  });
+
+  // Blocks
+  $('blockUser').addEventListener('click', async () => {
+    try {
+      guardClient();
+      const user_id = $('blockUserId').value;
+      const data = await client.friends.block(user_id);
+      log('POST /friends/blocks/{user_id}', data);
+    } catch (err) { logError('POST /friends/blocks/{user_id}', err); }
+  });
+
+  $('unblockUser').addEventListener('click', async () => {
+    try {
+      guardClient();
+      const user_id = $('blockUserId').value;
+      const data = await client.friends.unblock(user_id);
+      log('DELETE /friends/blocks/{user_id}', data);
+    } catch (err) { logError('DELETE /friends/blocks/{user_id}', err); }
+  });
+
+  $('listBlocks').addEventListener('click', async () => {
+    try {
+      guardClient();
+      const page = Number($('friendPage').value || '1');
+      const limit = Number($('friendLimit').value || '20');
+      const data = await client.friends.listBlocks({ page, limit });
+      log('GET /friends/blocks', data);
+    } catch (err) { logError('GET /friends/blocks', err); }
+  });
+}
+
 function bindRegisterSection() {
   // POST /users/send-code
   $('sendCode').addEventListener('click', async () => {
@@ -558,6 +733,8 @@ function main() {
   bindActivationSection();
   bindUsersSection();
   bindFilesSection();
+  bindFriendsSection();
+  bindChatSection();
   // 初始化客户端（可选）
   createOrUpdateClient();
 }

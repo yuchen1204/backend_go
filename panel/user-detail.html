@@ -140,6 +140,30 @@
                                 </div>
                             </div>
 
+                            <!-- 好友功能封禁管理 -->
+                            <div class="operation-section">
+                                <h4>好友功能封禁</h4>
+                                <div class="form-group">
+                                    <div>
+                                        <span>当前状态：</span>
+                                        <span id="friendBanStatusText">未知</span>
+                                        <button id="queryFriendBanBtn" class="btn btn-secondary">刷新状态</button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="friendBanReason">封禁原因</label>
+                                    <input type="text" id="friendBanReason" class="form-control" placeholder="请输入封禁原因">
+                                </div>
+                                <div class="form-group">
+                                    <label for="friendBanUntil">封禁截止时间</label>
+                                    <input type="datetime-local" id="friendBanUntil" class="form-control" />
+                                </div>
+                                <div class="form-group">
+                                    <button id="setFriendBanBtn" class="btn btn-warning">设置封禁</button>
+                                    <button id="removeFriendBanBtn" class="btn btn-secondary">解除封禁</button>
+                                </div>
+                            </div>
+
                             <!-- 危险操作 -->
                             <div class="operation-section danger-zone">
                                 <h4>危险操作</h4>

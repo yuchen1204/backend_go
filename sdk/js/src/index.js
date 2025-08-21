@@ -61,6 +61,41 @@ function createClient(options = {}) {
     isRefreshing: false,
   };
 
+  // Friends APIs (user-side)
+  const friends = {
+    // requests
+    createRequest: ({ receiver_id, note } = {}) =>
+      doRequest('POST', '/friends/requests', { auth: true, body: { receiver_id, note } }),
+    acceptRequest: (id) =>
+      doRequest('POST', `/friends/requests/${encodeURIComponent(id)}/accept`, { auth: true }),
+    rejectRequest: (id) =>
+      doRequest('POST', `/friends/requests/${encodeURIComponent(id)}/reject`, { auth: true }),
+    cancelRequest: (id) =>
+      doRequest('DELETE', `/friends/requests/${encodeURIComponent(id)}`, { auth: true }),
+
+    // lists
+    listFriends: ({ page, limit, search } = {}) =>
+      doRequest('GET', '/friends/list', { auth: true, query: { page, limit, search } }),
+    listIncoming: ({ page, limit, status } = {}) =>
+      doRequest('GET', '/friends/requests/incoming', { auth: true, query: { page, limit, status } }),
+    listOutgoing: ({ page, limit, status } = {}) =>
+      doRequest('GET', '/friends/requests/outgoing', { auth: true, query: { page, limit, status } }),
+
+    // friend operations
+    updateRemark: (friend_id, remark) =>
+      doRequest('PATCH', `/friends/remarks/${encodeURIComponent(friend_id)}`, { auth: true, body: { remark } }),
+    deleteFriend: (friend_id) =>
+      doRequest('DELETE', `/friends/${encodeURIComponent(friend_id)}`, { auth: true }),
+
+    // block list
+    block: (user_id) =>
+      doRequest('POST', `/friends/blocks/${encodeURIComponent(user_id)}`, { auth: true }),
+    unblock: (user_id) =>
+      doRequest('DELETE', `/friends/blocks/${encodeURIComponent(user_id)}`, { auth: true }),
+    listBlocks: ({ page, limit } = {}) =>
+      doRequest('GET', '/friends/blocks', { auth: true, query: { page, limit } }),
+  };
+
   async function unwrapResponse(resp) {
     let data;
     const text = await resp.text();
@@ -327,6 +362,46 @@ function createClient(options = {}) {
     files,
     users,
     auth,
+    friends,
+    // Chat WS module
+    chat: (() => {
+      function buildWSURL(baseURL, basePath, token) {
+        const httpUrl = String(baseURL).replace(/\/$/, '') + String(basePath) + '/ws/chat';
+        const u = new URL(httpUrl);
+        const wsProto = u.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = wsProto + '//' + u.host + u.pathname + (token ? `?token=${encodeURIComponent(token)}` : '');
+        return wsUrl;
+      }
+
+      function connect({ token, onOpen, onClose, onError, onMessage } = {}) {
+        const tk = token || state.accessToken;
+        const url = buildWSURL(baseURL, basePath, tk);
+        const ws = new WebSocket(url);
+        if (onOpen) ws.addEventListener('open', onOpen);
+        if (onClose) ws.addEventListener('close', onClose);
+        if (onError) ws.addEventListener('error', onError);
+        if (onMessage) ws.addEventListener('message', (ev) => {
+          try {
+            const data = ev.data ? JSON.parse(ev.data) : null;
+            onMessage(data);
+          } catch (_) {
+            onMessage(ev.data);
+          }
+        });
+        function send({ to_user_id, room_id, content }) {
+          if (!content) throw new Error('content is required');
+          const payload = { content };
+          if (room_id) payload.room_id = room_id;
+          else if (to_user_id) payload.to_user_id = to_user_id;
+          else throw new Error('either room_id or to_user_id is required');
+          ws.send(JSON.stringify(payload));
+        }
+        function close() { try { ws.close(); } catch (_) {} }
+        return { socket: ws, send, close };
+      }
+
+      return { connect };
+    })(),
   };
 }
 

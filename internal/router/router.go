@@ -13,7 +13,7 @@ import (
 )
 
 // SetupRoutes 设置路由
-func SetupRoutes(userHandler *handler.UserHandler, fileHandler *handler.FileHandler, adminHandler *handler.AdminHandler, jwtSvc service.JwtService, blacklistRepo repository.AccessTokenBlacklistRepository) *gin.Engine {
+func SetupRoutes(userHandler *handler.UserHandler, fileHandler *handler.FileHandler, adminHandler *handler.AdminHandler, friendHandler *handler.FriendHandler, wsHandler *handler.WSHandler, jwtSvc service.JwtService, blacklistRepo repository.AccessTokenBlacklistRepository) *gin.Engine {
 	// 创建Gin引擎
 	r := gin.Default()
 
@@ -68,6 +68,29 @@ func SetupRoutes(userHandler *handler.UserHandler, fileHandler *handler.FileHand
 			authFileRoutes.DELETE("/:id", fileHandler.DeleteFile)
 		}
 
+		// 好友相关路由（需要认证）
+		friends := v1.Group("/friends")
+		friends.Use(middleware.AuthMiddleware(jwtSvc, blacklistRepo))
+		{
+			friends.POST("/requests", friendHandler.CreateRequest)
+			friends.GET("/requests/incoming", friendHandler.ListIncomingRequests)
+			friends.GET("/requests/outgoing", friendHandler.ListOutgoingRequests)
+			friends.POST("/requests/:id/accept", friendHandler.AcceptRequest)
+			friends.POST("/requests/:id/reject", friendHandler.RejectRequest)
+			friends.DELETE("/requests/:id", friendHandler.CancelRequest)
+
+			friends.GET("/list", friendHandler.ListFriends)
+			friends.PATCH("/remarks/:friend_id", friendHandler.UpdateRemark)
+			friends.DELETE("/:friend_id", friendHandler.DeleteFriend)
+
+			friends.POST("/blocks/:user_id", friendHandler.Block)
+			friends.DELETE("/blocks/:user_id", friendHandler.Unblock)
+			friends.GET("/blocks", friendHandler.ListBlocks)
+		}
+
+		// WebSocket 路由（鉴权由 handler 内部处理：支持 Authorization 头或 query token）
+		v1.GET("/ws/chat", wsHandler.Chat)
+
 		// 管理员相关路由
 		admin := v1.Group("/admin")
 		{
@@ -90,6 +113,10 @@ func SetupRoutes(userHandler *handler.UserHandler, fileHandler *handler.FileHand
 			authAdminRoutes.PUT("/users/:id/status", adminHandler.UpdateUserStatus)
 			authAdminRoutes.PUT("/users/:id/password", adminHandler.UpdateUserPassword)
 			authAdminRoutes.DELETE("/users/:id", adminHandler.DeleteUser)
+			// 好友功能封禁（管理员）
+			authAdminRoutes.POST("/users/:id/friend-ban", adminHandler.AdminSetFriendBan)
+			authAdminRoutes.DELETE("/users/:id/friend-ban", adminHandler.AdminRemoveFriendBan)
+			authAdminRoutes.GET("/users/:id/friend-ban", adminHandler.AdminGetFriendBan)
 			authAdminRoutes.GET("/stats/users", adminHandler.GetUserStats)
 			// 用户行为日志（按用户）
 			authAdminRoutes.GET("/users/:id/action-logs", adminHandler.ListUserActionLogs)
@@ -128,7 +155,7 @@ func CORSMiddleware() gin.HandlerFunc {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Credentials", "true")
 		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-		c.Header("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+		c.Header("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)

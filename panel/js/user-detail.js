@@ -13,6 +13,77 @@ class UserDetailManager {
         this.init();
     }
 
+    // 查询用户好友功能封禁状态
+    async queryFriendBan() {
+        if (!this.userId) return;
+        const statusEl = document.getElementById('friendBanStatusText');
+        if (statusEl) statusEl.textContent = '查询中…';
+        try {
+            const result = await adminAPI.getFriendBan(this.userId);
+            if (result.success) {
+                const d = result.data || {};
+                if (d.active) {
+                    const until = d.banned_until ? new Date(d.banned_until) : null;
+                    const reason = d.reason || '-';
+                    const untilText = until ? until.toLocaleString('zh-CN') : '-';
+                    statusEl.textContent = `已封禁，截止：${untilText}，原因：${reason}`;
+                } else {
+                    statusEl.textContent = '未封禁';
+                }
+            } else {
+                statusEl.textContent = result.message || '查询失败';
+            }
+        } catch (e) {
+            if (statusEl) statusEl.textContent = '查询失败';
+        }
+    }
+
+    // 设置用户好友功能封禁
+    async setFriendBan() {
+        if (!this.userId) return;
+        const reason = (document.getElementById('friendBanReason')?.value || '').trim();
+        const untilInput = document.getElementById('friendBanUntil');
+        const untilVal = untilInput?.value || '';
+        if (!reason) {
+            this.showNotification('请填写封禁原因', 'error');
+            return;
+        }
+        if (!untilVal) {
+            this.showNotification('请选择封禁截止时间', 'error');
+            return;
+        }
+        // 将 datetime-local 转为 RFC3339（使用本地时间）
+        const until = new Date(untilVal);
+        const banned_until = until.toISOString();
+        try {
+            const result = await adminAPI.setFriendBan(this.userId, { reason, banned_until });
+            if (result.success) {
+                this.showNotification('设置封禁成功', 'success');
+                await this.queryFriendBan();
+            } else {
+                this.showNotification(result.message || '设置封禁失败', 'error');
+            }
+        } catch (e) {
+            this.showNotification('设置封禁失败，请稍后重试', 'error');
+        }
+    }
+
+    // 解除用户好友功能封禁
+    async removeFriendBan() {
+        if (!this.userId) return;
+        try {
+            const result = await adminAPI.removeFriendBan(this.userId);
+            if (result.success) {
+                this.showNotification('解除封禁成功', 'success');
+                await this.queryFriendBan();
+            } else {
+                this.showNotification(result.message || '解除封禁失败', 'error');
+            }
+        } catch (e) {
+            this.showNotification('解除封禁失败，请稍后重试', 'error');
+        }
+    }
+
     async init() {
         // 检查登录状态
         if (!adminAPI.isLoggedIn()) {
@@ -85,6 +156,14 @@ class UserDetailManager {
         document.getElementById('updateStatusBtn').addEventListener('click', () => this.updateUserStatus());
         document.getElementById('resetPasswordBtn').addEventListener('click', () => this.resetUserPassword());
         document.getElementById('deleteUserBtn').addEventListener('click', () => this.deleteUser());
+
+        // 好友功能封禁
+        const queryBtn = document.getElementById('queryFriendBanBtn');
+        const setBtn = document.getElementById('setFriendBanBtn');
+        const removeBtn = document.getElementById('removeFriendBanBtn');
+        if (queryBtn) queryBtn.addEventListener('click', () => this.queryFriendBan());
+        if (setBtn) setBtn.addEventListener('click', () => this.setFriendBan());
+        if (removeBtn) removeBtn.addEventListener('click', () => this.removeFriendBan());
     }
 
     // 加载用户详情
@@ -128,6 +207,9 @@ class UserDetailManager {
         
         // 操作表单
         document.getElementById('userStatusSelect').value = this.user.status || 'active';
+
+        // 渲染好友封禁初始状态
+        this.queryFriendBan();
     }
 
     // 切换标签页

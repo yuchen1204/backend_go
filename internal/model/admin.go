@@ -10,3 +10,8 @@ type AdminLoginRequest struct {
 type AdminUpdatePasswordRequest struct {
 	NewPassword string `json:"new_password" binding:"required,min=6,max=100"`
 }
+
+// UserStatusUpdateRequest 管理员更新用户状态请求结构
+type UserStatusUpdateRequest struct {
+	Status string `json:"status" binding:"required,oneof=active inactive banned"`
+}

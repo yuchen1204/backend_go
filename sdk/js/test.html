@@ -272,6 +272,109 @@
       </div>
     </fieldset>
 
+    <fieldset>
+      <legend>好友</legend>
+      <div class="row">
+        <div>
+          <label>发起好友请求（鉴权）：</label>
+          <input id="createFriendRequestReceiverId" type="text" placeholder="对方用户ID receiver_id" />
+          <input id="createFriendRequestNote" type="text" placeholder="申请备注(可选) note" />
+          <div class="actions">
+            <button id="createFriendRequest">POST /friends/requests</button>
+          </div>
+        </div>
+        <div>
+          <label>处理请求：</label>
+          <input id="friendRequestId" type="text" placeholder="请求ID id" />
+          <div class="actions">
+            <button id="acceptFriendRequest">POST /friends/requests/{id}/accept</button>
+            <button id="rejectFriendRequest" class="secondary">POST /friends/requests/{id}/reject</button>
+            <button id="cancelFriendRequest" class="secondary">DELETE /friends/requests/{id}</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>好友列表（鉴权）：</label>
+          <input id="friendPage" type="number" placeholder="page" value="1" />
+          <input id="friendLimit" type="number" placeholder="limit" value="20" />
+          <input id="friendSearch" type="text" placeholder="搜索(可选) search" />
+          <div class="actions">
+            <button id="listFriends">GET /friends/list</button>
+          </div>
+        </div>
+        <div>
+          <label>请求列表（鉴权）：</label>
+          <select id="incomingStatus">
+            <option value="">入站状态(可选)</option>
+            <option value="pending">pending</option>
+            <option value="accepted">accepted</option>
+            <option value="rejected">rejected</option>
+            <option value="canceled">canceled</option>
+          </select>
+          <div class="actions">
+            <button id="listIncoming">GET /friends/requests/incoming</button>
+          </div>
+          <select id="outgoingStatus">
+            <option value="">出站状态(可选)</option>
+            <option value="pending">pending</option>
+            <option value="accepted">accepted</option>
+            <option value="rejected">rejected</option>
+            <option value="canceled">canceled</option>
+          </select>
+          <div class="actions">
+            <button id="listOutgoing">GET /friends/requests/outgoing</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>好友操作：</label>
+          <input id="friendFriendId" type="text" placeholder="好友ID friend_id" />
+          <input id="friendRemark" type="text" placeholder="备注 remark" />
+          <div class="actions">
+            <button id="updateRemarkFriend">PATCH /friends/remarks/{friend_id}</button>
+            <button id="deleteFriend" class="secondary">DELETE /friends/{friend_id}</button>
+          </div>
+        </div>
+        <div>
+          <label>黑名单：</label>
+          <input id="blockUserId" type="text" placeholder="用户ID user_id" />
+          <div class="actions">
+            <button id="blockUser">POST /friends/blocks/{user_id}</button>
+            <button id="unblockUser" class="secondary">DELETE /friends/blocks/{user_id}</button>
+            <button id="listBlocks" class="secondary">GET /friends/blocks</button>
+          </div>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>聊天（WebSocket，一对一、好友校验、room_id）</legend>
+      <div class="row">
+        <div>
+          <label>连接状态：<span id="chatStatus">未连接</span></label>
+          <div class="actions">
+            <button id="chatConnect">连接 WS</button>
+            <button id="chatDisconnect" class="secondary">断开 WS</button>
+          </div>
+          <div class="muted">说明：SDK 自动通过 query token 进行鉴权，例如 ?token=ACCESS_TOKEN</div>
+        </div>
+        <div>
+          <label>发送消息：</label>
+          <input id="chatToUserId" type="text" placeholder="对方用户ID to_user_id（与 room_id 二选一）" />
+          <input id="chatRoomId" type="text" placeholder="房间ID room_id（优先使用）" />
+          <input id="chatMessage" type="text" placeholder="消息内容 content" />
+          <div class="actions">
+            <button id="chatSend">发送</button>
+          </div>
+          <div class="muted">首次与好友发送将自动创建/恢复房间；服务端回包附带 room_id，页面会自动填充</div>
+        </div>
+      </div>
+    </fieldset>
+
     <h2>输出</h2>
     <div id="output" class="output"></div>
 
