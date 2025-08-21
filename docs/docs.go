@@ -24,6 +24,399 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/files": {
+            "get": {
+                "description": "分页筛选所有文件（公开与私有）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-files"
+                ],
+                "summary": "管理员获取文件列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "文件分类",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "存储类型",
+                        "name": "storage_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "存储名称",
+                        "name": "storage_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "是否公开",
+                        "name": "is_public",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页大小",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.ResponseData"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.FileListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ResponseData"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/files/public": {
+            "get": {
+                "description": "分页筛选公开文件",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-files"
+                ],
+                "summary": "管理员获取公开文件列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "文件分类",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "存储类型",
+                        "name": "storage_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "存储名称",
+                        "name": "storage_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页大小",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.ResponseData"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.FileListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ResponseData"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/files/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-files"
+                ],
+                "summary": "管理员获取文件详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "文件ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.ResponseData"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.FileResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ResponseData"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-files"
+                ],
+                "summary": "管理员更新文件",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "文件ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.FileUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.ResponseData"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.FileResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ResponseData"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ResponseData"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-files"
+                ],
+                "summary": "管理员删除文件",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "文件ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.ResponseData"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ResponseData"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ResponseData"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/refresh-token": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-auth"
+                ],
+                "summary": "刷新管理员Token",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.ResponseData"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/stats/traffic": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-stats"
+                ],
+                "summary": "管理员获取网络流量统计",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.ResponseData"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": true
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/storage/info": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-files"
+                ],
+                "summary": "管理员获取存储信息",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.ResponseData"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.StorageInfoResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/files/my": {
             "get": {
                 "security": [
@@ -619,6 +1012,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/users/activate": {
+            "post": {
+                "description": "使用验证码激活非活跃账户",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "激活账户",
+                "parameters": [
+                    {
+                        "description": "账户激活请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.ActivateAccountRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "账户激活成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.ResponseData"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误或验证码错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.ResponseData"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.ResponseData"
+                        }
+                    }
+                }
+            }
+        },
         "/users/login": {
             "post": {
                 "description": "使用用户名和密码登录，成功后返回包含Access Token、Refresh Token和用户信息的对象",
@@ -663,13 +1102,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "请求参数错误",
+                        "description": "请求参数错误或设备验证码相关错误",
                         "schema": {
                             "$ref": "#/definitions/response.ResponseData"
                         }
                     },
                     "401": {
                         "description": "用户名或密码错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.ResponseData"
+                        }
+                    },
+                    "403": {
+                        "description": "账户已被封禁或未激活",
                         "schema": {
                             "$ref": "#/definitions/response.ResponseData"
                         }
@@ -912,6 +1357,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.ResponseData"
                         }
                     },
+                    "403": {
+                        "description": "账户已被封禁或未激活",
+                        "schema": {
+                            "$ref": "#/definitions/response.ResponseData"
+                        }
+                    },
                     "500": {
                         "description": "服务器内部错误",
                         "schema": {
@@ -987,7 +1438,7 @@ const docTemplate = `{
         },
         "/users/reset-password": {
             "post": {
-                "description": "使用邮箱验证码重置用户密码。重置成功后，该用户的所有refresh token将被撤销，需要重新登录。",
+                "description": "使用验证码重置密码",
                 "consumes": [
                     "application/json"
                 ],
@@ -1017,19 +1468,59 @@ const docTemplate = `{
                         }
                     },
                     "400": {
+                        "description": "请求参数错误或验证码错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.ResponseData"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.ResponseData"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/send-activation-code": {
+            "post": {
+                "description": "为非活跃账户发送激活验证码",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "发送账户激活验证码",
+                "parameters": [
+                    {
+                        "description": "激活验证码请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.SendActivationCodeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "验证码发送成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.ResponseData"
+                        }
+                    },
+                    "400": {
                         "description": "请求参数错误",
                         "schema": {
                             "$ref": "#/definitions/response.ResponseData"
                         }
                     },
-                    "401": {
-                        "description": "验证码错误或已过期",
-                        "schema": {
-                            "$ref": "#/definitions/response.ResponseData"
-                        }
-                    },
-                    "404": {
-                        "description": "邮箱未注册",
+                    "429": {
+                        "description": "请求过于频繁",
                         "schema": {
                             "$ref": "#/definitions/response.ResponseData"
                         }
@@ -1273,6 +1764,23 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "model.ActivateAccountRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "verification_code"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "test@example.com"
+                },
+                "verification_code": {
+                    "type": "string",
+                    "example": "123456"
+                }
+            }
+        },
         "model.FileListResponse": {
             "type": "object",
             "properties": {
@@ -1366,9 +1874,46 @@ const docTemplate = `{
                 "username"
             ],
             "properties": {
+                "device_id": {
+                    "description": "设备指纹（建议为客户端计算的SHA256十六进制字符串，长度64）。\n若提供该字段，系统将进行陌生设备校验；未提供则按旧逻辑直接登录。",
+                    "type": "string",
+                    "maxLength": 128,
+                    "example": "e3b0c44298fc1c149afbf4c8996fb924..."
+                },
+                "device_name": {
+                    "description": "可选：设备名称、类型用于记录（不参与校验）",
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "John's iPhone"
+                },
+                "device_type": {
+                    "type": "string",
+                    "enum": [
+                        "mobile",
+                        "desktop",
+                        "tablet"
+                    ],
+                    "example": "mobile"
+                },
+                "device_verification_code": {
+                    "description": "如果是第二步校验，客户端可在同一登录接口提交邮箱验证码完成验证",
+                    "type": "string",
+                    "example": "123456"
+                },
+                "ip_address": {
+                    "description": "由服务器端在处理器中自动填充的请求来源信息",
+                    "type": "string",
+                    "maxLength": 45,
+                    "example": "203.0.113.1"
+                },
                 "password": {
                     "type": "string",
                     "example": "password123"
+                },
+                "user_agent": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)..."
                 },
                 "username": {
                     "type": "string",
@@ -1387,6 +1932,10 @@ const docTemplate = `{
                 },
                 "user": {
                     "$ref": "#/definitions/model.UserResponse"
+                },
+                "verification_required": {
+                    "description": "若为陌生设备首次登录，将不会返回token，而是提示需要进行设备验证码验证",
+                    "type": "boolean"
                 }
             }
         },
@@ -1448,6 +1997,18 @@ const docTemplate = `{
                 "verification_code": {
                     "type": "string",
                     "example": "123456"
+                }
+            }
+        },
+        "model.SendActivationCodeRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "test@example.com"
                 }
             }
         },
@@ -1515,6 +2076,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "https://example.com/new-avatar.jpg"
                 },
+                "background_url": {
+                    "type": "string",
+                    "example": "https://example.com/bg.jpg"
+                },
                 "bio": {
                     "type": "string",
                     "maxLength": 500,
@@ -1578,6 +2143,9 @@ const docTemplate = `{
                 "avatar": {
                     "type": "string"
                 },
+                "background_url": {
+                    "type": "string"
+                },
                 "bio": {
                     "type": "string"
                 },
@@ -1590,7 +2158,13 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "last_login_at": {
+                    "type": "string"
+                },
                 "nickname": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 },
                 "updated_at": {

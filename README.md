@@ -121,9 +121,9 @@ docker-compose -f docker-compose.multi-local.yml logs -f redis
 
 | 服务 | 地址 | 说明 |
 |------|------|------|
-| **API服务** | http://localhost:8080 | 主要API接口 |
-| **Swagger文档** | http://localhost:8080/swagger/index.html | 交互式API文档 |
-| **健康检查** | http://localhost:8080/health | 服务状态检查 |
+| **API服务** | http://localhost:1234 | 主要API接口 |
+| **Swagger文档** | http://localhost:1234/swagger/index.html | 交互式API文档 |
+| **健康检查** | http://localhost:1234/health | 服务状态检查 |
 
 #### 📊 服务管理
 
@@ -181,7 +181,7 @@ chmod +x scripts/generate-docs.sh
 ./scripts/generate-docs.sh
 
 # 4. 配置环境变量
-cp configs/env.example .env
+cp env.example .env
 # 编辑.env文件，配置数据库、Redis、SMTP等信息
 
 # 5. 启动数据库服务
@@ -198,14 +198,14 @@ go run cmd/main.go
 
 #### ✅ 验证安装
 
-访问 http://localhost:8080/health 查看服务状态。
+访问 http://localhost:1234/health 查看服务状态。
 
 ## API 文档
 
 ### 在线文档
 启动服务后，访问以下地址查看完整的交互式API文档：
 
-🌐 **Swagger UI**: [http://localhost:8080/swagger/index.html](http://localhost:8080/swagger/index.html)
+🌐 **Swagger UI**: [http://localhost:1234/swagger/index.html](http://localhost:1234/swagger/index.html)
 
 ### 生成文档
 ```bash
@@ -703,11 +703,11 @@ Authorization: Bearer <your-access-token>
 
 ## 环境配置
 
-复制 `configs/env.example` 文件并根据需要修改配置：
+复制 `env.example` 文件并根据需要修改配置：
 
 ```bash
 # 服务器 Server
-PORT=8080
+SERVICE_PORT=1234
 
 # 数据库 PostgreSQL
 DB_HOST=localhost
@@ -742,9 +742,9 @@ FILE_STORAGE_DEFAULT=docs
 FILE_STORAGE_LOCAL_NAMES=docs,avatars
 # 可选：本地存储路径/URL（按需取消注释）
 # FILE_STORAGE_LOCAL_DOCS_PATH=./uploads/docs
-# FILE_STORAGE_LOCAL_DOCS_URL=http://localhost:8080/uploads/docs
+# FILE_STORAGE_LOCAL_DOCS_URL=http://localhost:${SERVICE_PORT}/uploads/docs
 # FILE_STORAGE_LOCAL_AVATARS_PATH=./uploads/avatars
-# FILE_STORAGE_LOCAL_AVATARS_URL=http://localhost:8080/uploads/avatars
+# FILE_STORAGE_LOCAL_AVATARS_URL=http://localhost:${SERVICE_PORT}/uploads/avatars
 
 # S3（如未使用可留空）
 FILE_STORAGE_S3_NAMES=
@@ -809,7 +809,7 @@ FILE_STORAGE_S3_PRIMARY_BASE_URL=
 
 **第一步：尝试登录**
 ```bash
-curl -X POST "http://localhost:8080/api/v1/users/login" \
+curl -X POST "http://localhost:1234/api/v1/users/login" \
   -H "Content-Type: application/json" \
   -d '{
     "username": "testuser",
@@ -833,7 +833,7 @@ curl -X POST "http://localhost:8080/api/v1/users/login" \
 
 **第二步：提交验证码**
 ```bash
-curl -X POST "http://localhost:8080/api/v1/users/login" \
+curl -X POST "http://localhost:1234/api/v1/users/send-device-verification" \
   -H "Content-Type: application/json" \
   -d '{
     "username": "testuser",
@@ -867,7 +867,7 @@ curl -X POST "http://localhost:8080/api/v1/users/login" \
 
 ### 方法 1: 使用 Swagger UI (推荐)
 1. 启动服务器
-2. 访问 [http://localhost:8080/swagger/index.html](http://localhost:8080/swagger/index.html)
+2. 访问 [http://localhost:1234/swagger/index.html](http://localhost:1234/swagger/index.html)
 3. 在页面右上角点击"Authorize"按钮
 4. 输入Bearer Token: `Bearer your-access-token`
 5. 直接在页面中测试各个API
@@ -916,9 +916,9 @@ FILE_STORAGE_LOCAL_NAMES=docs,avatars
 
 # 可按名称覆写路径与URL（可选）
 FILE_STORAGE_LOCAL_DOCS_PATH=./uploads/docs
-FILE_STORAGE_LOCAL_DOCS_URL=http://localhost:8080/uploads/docs
+FILE_STORAGE_LOCAL_DOCS_URL=http://localhost:${SERVICE_PORT}/uploads/docs
 FILE_STORAGE_LOCAL_AVATARS_PATH=./uploads/avatars
-FILE_STORAGE_LOCAL_AVATARS_URL=http://localhost:8080/uploads/avatars
+FILE_STORAGE_LOCAL_AVATARS_URL=http://localhost:${SERVICE_PORT}/uploads/avatars
 ```
 
 #### S3存储配置
@@ -947,7 +947,7 @@ FILE_STORAGE_S3_BACKUPS_BASE_URL=
 
 #### 上传文件
 ```bash
-curl -X POST "http://localhost:8080/api/v1/files/upload" \
+curl -X POST "http://localhost:1234/api/v1/files/upload" \
   -H "Authorization: Bearer your-access-token" \
   -F "file=@example.jpg" \
   -F "storage_name=avatar" \
@@ -957,7 +957,7 @@ curl -X POST "http://localhost:8080/api/v1/files/upload" \
 
 #### 获取文件列表
 ```bash
-curl -X GET "http://localhost:8080/api/v1/files/my?category=profile&page=1&page_size=10" \
+curl -X GET "http://localhost:1234/api/v1/files/my?category=profile&page=1&page_size=10" \
   -H "Authorization: Bearer your-access-token"
 ```
 

@@ -15,7 +15,7 @@ swag init -g cmd/main.go -o ./docs
 if [ $? -eq 0 ]; then
     echo "✅ Swagger文档生成成功!"
     echo "📚 文档位置: ./docs/"
-    echo "🌐 启动服务后访问: http://localhost:1101/swagger/index.html"
+    echo "🌐 启动服务后访问: http://localhost:1234/swagger/index.html"
 else
     echo "❌ Swagger文档生成失败"
     exit 1

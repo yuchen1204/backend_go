@@ -223,6 +223,14 @@ func (h *AdminHandler) AdminDeleteFile(c *gin.Context) {
 }
 
 // UpdateUserPassword 管理员更新用户密码
+// @Summary 管理员更新用户密码
+// @Tags admin-users
+// @Accept json
+// @Produce json
+// @Param id path string true "用户ID"
+// @Param request body model.UserPasswordUpdateRequest true "密码更新请求"
+// @Success 200 {object} response.ResponseData
+// @Router /admin/users/{id}/password [put]
 func (h *AdminHandler) UpdateUserPassword(c *gin.Context) {
     userIDStr := c.Param("id")
     userID, err := uuid.Parse(userIDStr)
@@ -339,6 +347,14 @@ func (h *AdminHandler) Login(c *gin.Context) {
 }
 
 // GetUsers 获取用户列表
+// @Summary 管理员获取用户列表
+// @Tags admin-users
+// @Produce json
+// @Param page query int false "页码" default(1)
+// @Param limit query int false "每页数量" default(10)
+// @Param search query string false "搜索关键词"
+// @Success 200 {object} response.ResponseData{data=map[string]any}
+// @Router /admin/users [get]
 func (h *AdminHandler) GetUsers(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
@@ -359,6 +375,12 @@ func (h *AdminHandler) GetUsers(c *gin.Context) {
 }
 
 // GetUserDetail 获取用户详情
+// @Summary 管理员获取用户详情
+// @Tags admin-users
+// @Produce json
+// @Param id path string true "用户ID"
+// @Success 200 {object} response.ResponseData{data=model.UserResponse}
+// @Router /admin/users/{id} [get]
 func (h *AdminHandler) GetUserDetail(c *gin.Context) {
 	userIDStr := c.Param("id")
 	userID, err := uuid.Parse(userIDStr)
@@ -377,6 +399,14 @@ func (h *AdminHandler) GetUserDetail(c *gin.Context) {
 }
 
 // UpdateUserStatus 更新用户状态
+// @Summary 管理员更新用户状态
+// @Tags admin-users
+// @Accept json
+// @Produce json
+// @Param id path string true "用户ID"
+// @Param request body model.UserStatusUpdateRequest true "状态更新请求"
+// @Success 200 {object} response.ResponseData
+// @Router /admin/users/{id}/status [put]
 func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 	userIDStr := c.Param("id")
 	userID, err := uuid.Parse(userIDStr)
@@ -421,6 +451,12 @@ func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 }
 
 // DeleteUser 删除用户
+// @Summary 管理员删除用户
+// @Tags admin-users
+// @Produce json
+// @Param id path string true "用户ID"
+// @Success 200 {object} response.ResponseData
+// @Router /admin/users/{id} [delete]
 func (h *AdminHandler) DeleteUser(c *gin.Context) {
 	userIDStr := c.Param("id")
 	userID, err := uuid.Parse(userIDStr)
@@ -457,6 +493,11 @@ func (h *AdminHandler) DeleteUser(c *gin.Context) {
 }
 
 // GetUserStats 获取用户统计信息
+// @Summary 管理员获取用户统计信息
+// @Tags admin-stats
+// @Produce json
+// @Success 200 {object} response.ResponseData{data=map[string]any}
+// @Router /admin/stats/users [get]
 func (h *AdminHandler) GetUserStats(c *gin.Context) {
 	stats, err := h.userService.GetUserStats()
 	if err != nil {
@@ -468,6 +509,13 @@ func (h *AdminHandler) GetUserStats(c *gin.Context) {
 }
 
 // CreateAdminLog 创建管理员行为日志
+// @Summary 创建管理员行为日志
+// @Tags admin-logs
+// @Accept json
+// @Produce json
+// @Param request body model.AdminLogCreateRequest true "日志创建请求"
+// @Success 200 {object} response.ResponseData{data=map[string]any}
+// @Router /admin/logs [post]
 func (h *AdminHandler) CreateAdminLog(c *gin.Context) {
     var req model.AdminLogCreateRequest
     if err := c.ShouldBindJSON(&req); err != nil {
@@ -497,6 +545,15 @@ func (h *AdminHandler) CreateAdminLog(c *gin.Context) {
 }
 
 // ListAdminLogs 查询管理员行为日志
+// @Summary 查询管理员行为日志
+// @Tags admin-logs
+// @Produce json
+// @Param page query int false "页码" default(1)
+// @Param limit query int false "每页数量" default(10)
+// @Param admin_username query string false "管理员用户名"
+// @Param action query string false "操作类型"
+// @Success 200 {object} response.ResponseData{data=map[string]any}
+// @Router /admin/logs [get]
 func (h *AdminHandler) ListAdminLogs(c *gin.Context) {
     page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
     limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
@@ -518,6 +575,14 @@ func (h *AdminHandler) ListAdminLogs(c *gin.Context) {
 }
 
 // ListUserActionLogs 分页查询某用户的行为日志
+// @Summary 管理员查询用户行为日志
+// @Tags admin-users
+// @Produce json
+// @Param id path string true "用户ID"
+// @Param page query int false "页码" default(1)
+// @Param limit query int false "每页数量" default(10)
+// @Success 200 {object} response.ResponseData{data=map[string]any}
+// @Router /admin/users/{id}/action-logs [get]
 func (h *AdminHandler) ListUserActionLogs(c *gin.Context) {
     userIDStr := c.Param("id")
     userID, err := uuid.Parse(userIDStr)

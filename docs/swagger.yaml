@@ -1,5 +1,17 @@
 basePath: /api/v1
 definitions:
+  model.ActivateAccountRequest:
+    properties:
+      email:
+        example: test@example.com
+        type: string
+      verification_code:
+        example: "123456"
+        type: string
+    required:
+    - email
+    - verification_code
+    type: object
   model.FileListResponse:
     properties:
       files:
@@ -60,8 +72,40 @@ definitions:
     type: object
   model.LoginRequest:
     properties:
+      device_id:
+        description: |-
+          设备指纹（建议为客户端计算的SHA256十六进制字符串，长度64）。
+          若提供该字段，系统将进行陌生设备校验；未提供则按旧逻辑直接登录。
+        example: e3b0c44298fc1c149afbf4c8996fb924...
+        maxLength: 128
+        type: string
+      device_name:
+        description: 可选：设备名称、类型用于记录（不参与校验）
+        example: John's iPhone
+        maxLength: 100
+        type: string
+      device_type:
+        enum:
+        - mobile
+        - desktop
+        - tablet
+        example: mobile
+        type: string
+      device_verification_code:
+        description: 如果是第二步校验，客户端可在同一登录接口提交邮箱验证码完成验证
+        example: "123456"
+        type: string
+      ip_address:
+        description: 由服务器端在处理器中自动填充的请求来源信息
+        example: 203.0.113.1
+        maxLength: 45
+        type: string
       password:
         example: password123
+        type: string
+      user_agent:
+        example: Mozilla/5.0 (Windows NT 10.0; Win64; x64)...
+        maxLength: 500
         type: string
       username:
         example: testuser
@@ -78,6 +122,9 @@ definitions:
         type: string
       user:
         $ref: '#/definitions/model.UserResponse'
+      verification_required:
+        description: 若为陌生设备首次登录，将不会返回token，而是提示需要进行设备验证码验证
+        type: boolean
     type: object
   model.LogoutRequest:
     properties:
@@ -122,6 +169,14 @@ definitions:
     - new_password
     - verification_code
     type: object
+  model.SendActivationCodeRequest:
+    properties:
+      email:
+        example: test@example.com
+        type: string
+    required:
+    - email
+    type: object
   model.SendCodeRequest:
     properties:
       email:
@@ -165,6 +220,9 @@ definitions:
     properties:
       avatar:
         example: https://example.com/new-avatar.jpg
+        type: string
+      background_url:
+        example: https://example.com/bg.jpg
         type: string
       bio:
         example: 新的个人简介
@@ -214,6 +272,8 @@ definitions:
     properties:
       avatar:
         type: string
+      background_url:
+        type: string
       bio:
         type: string
       created_at:
@@ -222,7 +282,11 @@ definitions:
         type: string
       id:
         type: string
+      last_login_at:
+        type: string
       nickname:
+        type: string
+      status:
         type: string
       updated_at:
         type: string
@@ -257,6 +321,244 @@ info:
   title: Backend API
   version: "1.0"
 paths:
+  /admin/files:
+    get:
+      description: 分页筛选所有文件（公开与私有）
+      parameters:
+      - description: 文件分类
+        in: query
+        name: category
+        type: string
+      - description: 存储类型
+        in: query
+        name: storage_type
+        type: string
+      - description: 存储名称
+        in: query
+        name: storage_name
+        type: string
+      - description: 是否公开
+        in: query
+        name: is_public
+        type: boolean
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页大小
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.FileListResponse'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 管理员获取文件列表
+      tags:
+      - admin-files
+  /admin/files/{id}:
+    delete:
+      parameters:
+      - description: 文件ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 管理员删除文件
+      tags:
+      - admin-files
+    get:
+      parameters:
+      - description: 文件ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.FileResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 管理员获取文件详情
+      tags:
+      - admin-files
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 文件ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.FileUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.FileResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 管理员更新文件
+      tags:
+      - admin-files
+  /admin/files/public:
+    get:
+      description: 分页筛选公开文件
+      parameters:
+      - description: 文件分类
+        in: query
+        name: category
+        type: string
+      - description: 存储类型
+        in: query
+        name: storage_type
+        type: string
+      - description: 存储名称
+        in: query
+        name: storage_name
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页大小
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.FileListResponse'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 管理员获取公开文件列表
+      tags:
+      - admin-files
+  /admin/refresh-token:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  additionalProperties:
+                    type: string
+                  type: object
+              type: object
+      summary: 刷新管理员Token
+      tags:
+      - admin-auth
+  /admin/stats/traffic:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+      summary: 管理员获取网络流量统计
+      tags:
+      - admin-stats
+  /admin/storage/info:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.ResponseData'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.StorageInfoResponse'
+              type: object
+      summary: 管理员获取存储信息
+      tags:
+      - admin-files
   /files/{id}:
     delete:
       description: 删除指定的文件（仅文件所有者可操作）
@@ -663,6 +965,36 @@ paths:
       summary: 根据ID获取用户信息
       tags:
       - 用户管理
+  /users/activate:
+    post:
+      consumes:
+      - application/json
+      description: 使用验证码激活非活跃账户
+      parameters:
+      - description: 账户激活请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.ActivateAccountRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 账户激活成功
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "400":
+          description: 请求参数错误或验证码错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 激活账户
+      tags:
+      - 用户管理
   /users/login:
     post:
       consumes:
@@ -688,11 +1020,15 @@ paths:
                   $ref: '#/definitions/model.LoginResponse'
               type: object
         "400":
-          description: 请求参数错误
+          description: 请求参数错误或设备验证码相关错误
           schema:
             $ref: '#/definitions/response.ResponseData'
         "401":
           description: 用户名或密码错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "403":
+          description: 账户已被封禁或未激活
           schema:
             $ref: '#/definitions/response.ResponseData'
         "500":
@@ -840,6 +1176,10 @@ paths:
           description: Refresh Token无效或已过期
           schema:
             $ref: '#/definitions/response.ResponseData'
+        "403":
+          description: 账户已被封禁或未激活
+          schema:
+            $ref: '#/definitions/response.ResponseData'
         "500":
           description: 服务器内部错误
           schema:
@@ -890,7 +1230,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: 使用邮箱验证码重置用户密码。重置成功后，该用户的所有refresh token将被撤销，需要重新登录。
+      description: 使用验证码重置密码
       parameters:
       - description: 重置密码请求
         in: body
@@ -906,15 +1246,7 @@ paths:
           schema:
             $ref: '#/definitions/response.ResponseData'
         "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/response.ResponseData'
-        "401":
-          description: 验证码错误或已过期
-          schema:
-            $ref: '#/definitions/response.ResponseData'
-        "404":
-          description: 邮箱未注册
+          description: 请求参数错误或验证码错误
           schema:
             $ref: '#/definitions/response.ResponseData'
         "500":
@@ -924,6 +1256,40 @@ paths:
       summary: 重置密码
       tags:
       - 密码管理
+  /users/send-activation-code:
+    post:
+      consumes:
+      - application/json
+      description: 为非活跃账户发送激活验证码
+      parameters:
+      - description: 激活验证码请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.SendActivationCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 验证码发送成功
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "429":
+          description: 请求过于频繁
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/response.ResponseData'
+      summary: 发送账户激活验证码
+      tags:
+      - 用户管理
   /users/send-code:
     post:
       consumes:
