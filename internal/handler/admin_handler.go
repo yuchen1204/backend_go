@@ -586,8 +586,25 @@ func (h *AdminHandler) DeleteUser(c *gin.Context) {
 		return
 	}
 
+	// 防止管理员删除自己的账户
+	if adminUserID, exists := c.Get("admin_user_id"); exists {
+		if adminUUID, ok := adminUserID.(uuid.UUID); ok && adminUUID == userID {
+			response.ErrorResponse(c, http.StatusForbidden, "不能删除自己的账户", nil)
+			return
+		}
+	}
+
 	err = h.userService.DeleteUserByUUID(userID)
 	if err != nil {
+		errMsg := err.Error()
+		if errMsg == "用户不存在" {
+			response.ErrorResponse(c, http.StatusNotFound, errMsg, nil)
+			return
+		}
+		if errMsg == "系统保护用户不能删除" {
+			response.ErrorResponse(c, http.StatusForbidden, errMsg, nil)
+			return
+		}
 		response.ErrorResponse(c, http.StatusInternalServerError, "删除用户失败", err.Error())
 		return
 	}

@@ -1,11 +1,11 @@
 name: fultter_package
-description: "A new Flutter package project."
+description: "sdk for yc"
 version: 0.0.1
 homepage:
 
 environment:
   sdk: ^3.9.0
-  flutter: ">=1.17.0"
+  flutter: ">=3.22.0"
 
 dependencies:
   flutter:

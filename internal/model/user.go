@@ -11,12 +11,12 @@ type User struct {
 	ID           uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
 	Username     string    `json:"username" gorm:"uniqueIndex;not null;size:50"`
 	Email        string    `json:"email" gorm:"uniqueIndex;not null;size:100"`
-	PasswordSalt string    `json:"-" gorm:"not null;size:255"` // 密码加盐哈希，不在JSON中返回
+	PasswordSalt string    `json:"-" gorm:"not null;size:128"` // 密码加盐哈希，不在JSON中返回
 	Nickname     string    `json:"nickname" gorm:"size:100"`
 	Bio          string    `json:"bio" gorm:"type:text"`
 	Avatar       string    `json:"avatar" gorm:"size:255"`
 	BackgroundURL string   `json:"background_url" gorm:"size:512"`
-	Status       string    `json:"status" gorm:"default:'active';size:20"` // 用户状态：active, inactive, banned
+	Status       string    `json:"status" gorm:"default:'inactive';size:20"` // 用户状态：active, inactive, banned
 	LastLoginAt  *time.Time `json:"last_login_at" gorm:"index"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
@@ -32,7 +32,7 @@ func (User) TableName() string {
 type UserRegisterRequest struct {
 	Username         string `json:"username" binding:"required,min=3,max=50" example:"testuser"`
 	Email            string `json:"email" binding:"required,email" example:"test@example.com"`
-	Password         string `json:"password" binding:"required,min=6,max=100" example:"password123"`
+	Password         string `json:"password" binding:"required,min=8,max=100,containsany=0123456789,containsany=ABCDEFGHIJKLMNOPQRSTUVWXYZ,containsany=abcdefghijklmnopqrstuvwxyz" example:"Password123"`
 	VerificationCode string `json:"verification_code" binding:"required,len=6" example:"123456"`
 	Nickname         string `json:"nickname" binding:"omitempty,max=100" example:"测试用户"`
 	Bio              string `json:"bio" binding:"omitempty,max=500" example:"这是我的个人简介"`
@@ -49,9 +49,9 @@ type SendCodeRequest struct {
 type LoginRequest struct {
 	Username string `json:"username" binding:"required" example:"testuser"`
 	Password string `json:"password" binding:"required" example:"password123"`
-	// 设备指纹（建议为客户端计算的SHA256十六进制字符串，长度64）。
-	// 若提供该字段，系统将进行陌生设备校验；未提供则按旧逻辑直接登录。
-	DeviceID         string `json:"device_id" binding:"omitempty,max=128" example:"e3b0c44298fc1c149afbf4c8996fb924..."`
+	// 设备指纹（必须为客户端计算的SHA256十六进制字符串，长度64）。
+	// 系统将进行陌生设备校验以增强安全性。
+	DeviceID         string `json:"device_id" binding:"omitempty,len=64,hexadecimal" example:"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"`
 	// 可选：设备名称、类型用于记录（不参与校验）
 	DeviceName       string `json:"device_name" binding:"omitempty,max=100" example:"John's iPhone"`
 	DeviceType       string `json:"device_type" binding:"omitempty,oneof=mobile desktop tablet" example:"mobile"`
@@ -104,7 +104,7 @@ type SendResetCodeRequest struct {
 type ResetPasswordRequest struct {
 	Email            string `json:"email" binding:"required,email" example:"test@example.com"`
 	VerificationCode string `json:"verification_code" binding:"required,len=6" example:"123456"`
-	NewPassword      string `json:"new_password" binding:"required,min=6,max=100" example:"newpassword123"`
+	NewPassword      string `json:"new_password" binding:"required,min=8,max=100,containsany=0123456789,containsany=ABCDEFGHIJKLMNOPQRSTUVWXYZ,containsany=abcdefghijklmnopqrstuvwxyz" example:"NewPassword123"`
 }
 
 // SendActivationCodeRequest 发送激活验证码请求结构

@@ -4,6 +4,12 @@
 
 目录路径：`sdk/fultter_package/`
 
+## 环境要求
+
+- Dart: >= 3.9.0
+- Flutter: >= 3.22.0
+- 依赖：`dio`、`web_socket_channel`、`device_info_plus`、`crypto`
+
 ## 安装
 
 pubspec.yaml 中添加依赖（本地开发直接 path 依赖）：
@@ -58,6 +64,24 @@ void main() async {
 }
 ```
 
+### 使用当前设备信息进行登录（陌生设备场景）
+
+```dart
+import 'package:fultter_package/fultter_package.dart';
+
+final client = BackendClient(baseUrl: 'http://localhost:8080');
+final res = await client.auth.loginWithCurrentDevice(
+  username: 'testuser',
+  password: 'password123',
+  // 若收到了邮箱验证码：
+  // deviceVerificationCode: '123456',
+);
+client.setTokens(
+  accessToken: res?['access_token'],
+  refreshToken: res?['refresh_token'],
+);
+```
+
 ## 主要 API
 
 - `BackendClient({ String? baseUrl, String basePath = '/api/v1', ... })`
@@ -67,6 +91,7 @@ void main() async {
 ### Auth 模块（`client.auth`）
 - `login(payload)` 普通登录（返回 `access_token`/`refresh_token`）
 - `loginWithDevice(...)` 陌生设备/带设备信息登录
+- `loginWithCurrentDevice({ username, password, deviceVerificationCode? })` 自动采集当前设备信息并登录
 - `refresh({ refreshToken? })` 刷新 Access Token
 - `logout({ accessToken?, refreshToken? })`
 
@@ -106,6 +131,14 @@ final uploaded = await client.files.upload(file: mf, isPublic: true);
   - `stream`：接收消息（自动尝试 JSON 解析）
   - `send({ toUserId?, roomId?, required content })`
   - `close()`
+
+## 设备信息与指纹
+
+- 文件：`lib/src/device.dart`
+- 方法：
+  - `DeviceHelper.getDeviceInfo()`：跨平台获取设备关键信息
+  - `DeviceHelper.computeFingerprint(info)`：计算 SHA256 指纹
+  - `getCurrentDevicePayload()`：返回 `{ device_id, device_name, device_type }`，已在 `loginWithCurrentDevice()` 内部使用
 
 ## 错误处理
 

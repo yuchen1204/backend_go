@@ -5,3 +5,4 @@ export 'src/modules/auth.dart';
 export 'src/modules/users.dart';
 export 'src/modules/files.dart';
 export 'src/modules/chat.dart';
+export 'src/device.dart';

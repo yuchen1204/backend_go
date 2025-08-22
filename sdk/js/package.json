@@ -10,7 +10,8 @@
     "start": "npm run dev",
     "dev": "npx serve -l 5173",
     "dev:http-server": "npx http-server -p 5173",
-    "dev:python": "python -m http.server 5173"
+    "dev:python": "python -m http.server 5173",
+    "docs": "npx jsdoc -c jsdoc.json"
   },
   "engines": {
     "node": ">=18"

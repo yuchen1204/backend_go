@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // BlockListRepository 拉黑仓储
@@ -25,11 +26,18 @@ func NewBlockListRepository(db *gorm.DB) BlockListRepository {
 }
 
 func (r *blockListRepository) Block(userID, blockedID uuid.UUID) error {
-	bl := &model.BlockList{
-		UserID:        userID,
-		BlockedUserID: blockedID,
-	}
-	return r.db.FirstOrCreate(bl, "user_id = ? AND blocked_user_id = ?", userID, blockedID).Error
+    bl := &model.BlockList{
+        UserID:        userID,
+        BlockedUserID: blockedID,
+    }
+    // 处理软删除导致的唯一键冲突：(user_id, blocked_user_id) 唯一
+    // 如果存在被软删除的记录，使用 Upsert 将 deleted_at 置空，实现恢复
+    return r.db.Clauses(clause.OnConflict{
+        Columns:   []clause.Column{{Name: "user_id"}, {Name: "blocked_user_id"}},
+        DoUpdates: clause.Assignments(map[string]any{
+            "deleted_at": gorm.Expr("NULL"),
+        }),
+    }).Create(bl).Error
 }
 
 func (r *blockListRepository) Unblock(userID, blockedID uuid.UUID) error {

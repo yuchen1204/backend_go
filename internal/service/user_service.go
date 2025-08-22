@@ -22,6 +22,8 @@ import (
 const (
 	verificationCodeLength = 6
 	verificationCodeTTL    = 5 * time.Minute
+	// activationGracePeriod 注册后允许未激活登录的宽限时间
+	activationGracePeriod  = 24 * time.Hour
 )
 
 // UserService 用户服务接口
@@ -271,22 +273,9 @@ func (s *userService) Register(ctx context.Context, req *model.UserRegisterReque
         return nil, errors.New("验证码错误")
     }
 
-    // 检查用户名是否已存在
-    exists, err := s.userRepo.ExistsByUsername(req.Username)
-    if err != nil {
-        return nil, fmt.Errorf("检查用户名失败: %w", err)
-    }
-    if exists {
-        return nil, errors.New("用户名已存在")
-    }
-
-    // 检查邮箱是否已存在 (双重检查)
-    exists, err = s.userRepo.ExistsByEmail(req.Email)
-    if err != nil {
-        return nil, fmt.Errorf("检查邮箱失败: %w", err)
-    }
-    if exists {
-        return nil, errors.New("邮箱已存在")
+    // 立即删除验证码，防止重放攻击
+    if err := s.codeRepo.Delete(ctx, req.Email); err != nil {
+        log.Printf("删除验证码失败: %v", err)
     }
 
     // 生成密码盐和哈希
@@ -306,15 +295,23 @@ func (s *userService) Register(ctx context.Context, req *model.UserRegisterReque
         Nickname:     req.Nickname,
         Bio:          req.Bio,
         Avatar:       req.Avatar,
+        Status:       "inactive", // 新用户默认为未激活状态
     }
 
-    // 保存到数据库
+    // 原子性创建用户，依赖数据库唯一约束处理竞态条件
     if err := s.userRepo.Create(user); err != nil {
+        // 检查是否是唯一约束违反
+        if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
+            if strings.Contains(err.Error(), "username") {
+                return nil, errors.New("用户名已存在")
+            }
+            if strings.Contains(err.Error(), "email") {
+                return nil, errors.New("邮箱已存在")
+            }
+            return nil, errors.New("用户名或邮箱已存在")
+        }
         return nil, fmt.Errorf("创建用户失败: %w", err)
     }
-
-    // 注册成功后删除验证码
-    _ = s.codeRepo.Delete(ctx, req.Email)
 
     return user.ToResponse(), nil
 }
@@ -375,7 +372,10 @@ func (s *userService) ValidatePassword(username, password string) (*model.User, 
         return nil, errors.New("账户已被封禁，无法登录")
     }
     if user.Status == "inactive" {
-        return nil, errors.New("账户未激活，无法登录")
+        // 未激活账户：若在注册后宽限期内，允许登录；否则要求先激活
+        if time.Since(user.CreatedAt) > activationGracePeriod {
+            return nil, errors.New("账户未激活，无法登录")
+        }
     }
 
     return user, nil
@@ -584,9 +584,44 @@ func (s *userService) Login(ctx context.Context, req *model.LoginRequest) (*mode
 		return nil, errors.New("用户名或密码错误")
 	}
 
-	// 如果未提供设备指纹，沿用旧逻辑直接登录
-	if strings.TrimSpace(req.DeviceID) == "" {
+	// 首次登录（LastLoginAt为空）跳过设备验证，直接签发Token
+	if user.LastLoginAt == nil {
+		// 若提供了设备指纹，则记录并信任该设备
+		if strings.TrimSpace(req.DeviceID) != "" {
+			now := time.Now()
+			// 尝试查找现有设备
+			if d, derr := s.deviceRepo.GetDeviceByUserAndFingerprint(user.ID, req.DeviceID); derr == nil && d != nil {
+				d.IsTrusted = true
+				d.IPAddress = req.IPAddress
+				d.UserAgent = req.UserAgent
+				if req.DeviceName != "" { d.DeviceName = req.DeviceName }
+				if req.DeviceType != "" { d.DeviceType = req.DeviceType }
+				d.LastLoginAt = &now
+				_ = s.deviceRepo.UpdateDevice(d)
+			} else {
+				dev := &model.UserDevice{
+					ID:          uuid.New(),
+					UserID:      user.ID,
+					DeviceID:    req.DeviceID,
+					DeviceName:  req.DeviceName,
+					DeviceType:  req.DeviceType,
+					UserAgent:   req.UserAgent,
+					IPAddress:   req.IPAddress,
+					IsTrusted:   true,
+					LastLoginAt: func() *time.Time { t := now; return &t }(),
+				}
+				_ = s.deviceRepo.CreateDevice(dev)
+			}
+		}
 		return s.issueTokenPair(ctx, user)
+	}
+
+	// 非首次登录：需要设备指纹并进行陌生设备验证
+	if strings.TrimSpace(req.DeviceID) == "" {
+		return &model.LoginResponse{
+			User:                 user.ToResponse(),
+			VerificationRequired: true,
+		}, errors.New("为了账户安全，请提供设备指纹信息")
 	}
 
 	// 2. 检查设备是否已信任
@@ -625,8 +660,15 @@ func (s *userService) Login(ctx context.Context, req *model.LoginRequest) (*mode
 			return nil, errors.New("验证码已过期或不存在，请重新获取")
 		}
 
+		// 检查尝试次数限制
+		if v.AttemptCount >= 5 {
+			return nil, errors.New("验证码尝试次数过多，请重新获取")
+		}
+
 		if v.VerificationCode != req.DeviceVerifyCode {
-			_ = s.deviceRepo.IncrementVerificationAttempt(v.ID)
+			if err := s.deviceRepo.IncrementVerificationAttempt(v.ID); err != nil {
+				log.Printf("增加验证尝试次数失败: %v", err)
+			}
 			return nil, errors.New("验证码错误")
 		}
 
@@ -791,6 +833,21 @@ func (s *userService) UpdateUserStatusByUUID(id uuid.UUID, status string) error 
 
 // DeleteUserByUUID 根据UUID删除用户
 func (s *userService) DeleteUserByUUID(id uuid.UUID) error {
+	// 1. 检查用户是否存在
+	user, err := s.userRepo.GetByID(id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("用户不存在")
+		}
+		return fmt.Errorf("查询用户失败: %w", err)
+	}
+
+	// 2. 检查是否为系统保护用户（可根据需要扩展）
+	if user.Username == "admin" || user.Username == "system" {
+		return errors.New("系统保护用户不能删除")
+	}
+
+	// 3. 执行软删除
 	return s.userRepo.Delete(id)
 }
 

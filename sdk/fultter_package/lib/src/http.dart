@@ -13,7 +13,7 @@ class BackendHttp {
   final String basePath; // e.g. /api/v1
   final TokenStore tokens;
   final bool autoRefresh;
-  bool _isRefreshing = false;
+  Future<String>? _refreshingFuture;
 
   BackendHttp({
     required this.baseUrl,
@@ -24,7 +24,7 @@ class BackendHttp {
   }) : _dio = Dio(options ?? BaseOptions(connectTimeout: const Duration(seconds: 15), receiveTimeout: const Duration(seconds: 30)));
 
   String _buildUrl(String path, [Map<String, dynamic>? query]) {
-    final base = baseUrl.replaceFirst(RegExp(r'/\$'), '');
+    final base = baseUrl.replaceFirst(RegExp(r'/$'), '');
     final uri = Uri.parse('$base$basePath$path').replace(queryParameters: _cleanupQuery(query));
     return uri.toString();
   }
@@ -115,14 +115,15 @@ class BackendHttp {
   }
 
   Future<String> _refreshAccessToken() async {
-    if (_isRefreshing) {
-      // simple guard: avoid concurrent refresh; let the first throw if it fails
-      throw BackendApiError('Refresh in progress');
+    // Reuse ongoing refresh to avoid parallel refresh attempts
+    if (_refreshingFuture != null) {
+      return await _refreshingFuture!;
     }
     if (tokens.refreshToken == null) {
       throw BackendApiError('Missing refresh token');
     }
-    _isRefreshing = true;
+    final completer = Completer<String>();
+    _refreshingFuture = completer.future;
     try {
       final resp = await _dio.post(_buildUrl('/users/refresh'), data: {
         'refresh_token': tokens.refreshToken,
@@ -133,9 +134,15 @@ class BackendHttp {
         throw BackendApiError('Invalid refresh response');
       }
       tokens.accessToken = access;
+      completer.complete(access);
       return access;
+    } catch (e) {
+      if (!completer.isCompleted) {
+        completer.completeError(e);
+      }
+      rethrow;
     } finally {
-      _isRefreshing = false;
+      _refreshingFuture = null;
     }
   }
 }

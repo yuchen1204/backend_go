@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // DeviceRepository 设备与设备验证仓储接口
@@ -48,10 +49,24 @@ func (r *deviceRepository) GetDeviceByUserAndFingerprint(userID uuid.UUID, devic
 
 // CreateDevice 创建设备
 func (r *deviceRepository) CreateDevice(device *model.UserDevice) error {
-	if err := r.db.Create(device).Error; err != nil {
-		return fmt.Errorf("create device error: %w", err)
-	}
-	return nil
+    // 处理软删除与唯一索引 (user_id, device_id) 冲突：
+    // 如果已存在软删除记录，则通过 Upsert 将 deleted_at 置空并更新最新字段，实现“恢复或创建”。
+    if err := r.db.Clauses(clause.OnConflict{
+        Columns:   []clause.Column{{Name: "user_id"}, {Name: "device_id"}},
+        DoUpdates: clause.Assignments(map[string]any{
+            "deleted_at":  gorm.Expr("NULL"),
+            "device_name": device.DeviceName,
+            "device_type": device.DeviceType,
+            "user_agent":  device.UserAgent,
+            "ip_address":  device.IPAddress,
+            "is_trusted":  device.IsTrusted,
+            "last_login_at": device.LastLoginAt,
+            "updated_at":   time.Now(),
+        }),
+    }).Create(device).Error; err != nil {
+        return fmt.Errorf("create device error: %w", err)
+    }
+    return nil
 }
 
 // UpdateDevice 更新设备
